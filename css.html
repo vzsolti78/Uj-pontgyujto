@@ -1,0 +1,793 @@
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-dark: #3730a3;
+    --primary-light: #a5b4fc;
+    --accent: #ec4899;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --bg: #e5edff;
+    --surface: #ffffff;
+    --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.18);
+    --radius-card: 24px;
+    --radius-pill: 999px;
+  }
+
+  /* Alap – PC / nem érintős nézet */
+  body {
+    margin: 0;
+    padding: 24px 12px 40px;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at top left, #eef2ff 0, #dbeafe 35%, #e0f2fe 65%, #fdf2ff 100%);
+    color: #0f172a;
+    font-size: 18px;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3 {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #0f172a;
+    text-align: center;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    margin: 0 0 16px;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    margin: 0 0 12px;
+  }
+
+  /* Fő tab-sáv – fixen fent, üveges hatás, árnyék */
+  #main-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    margin: -24px -12px 24px;
+    padding: 12px 16px 16px;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.85));
+    backdrop-filter: blur(18px);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.55);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  /* Tab konténerek (fő- és al-tabok) */
+  .tab-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  /* Tab gombok – 3D-s, “pill”, animációval */
+  .tab {
+    font-size: 20px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    color: #eef2ff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    box-shadow:
+      0 6px 0 rgba(15, 23, 42, 0.55),
+      0 0 0 1px rgba(255, 255, 255, 0.12);
+    transform: translateY(0);
+    transition:
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      background 0.18s ease,
+      filter 0.18s ease;
+    text-shadow: 0 1px 2px rgba(15, 23, 42, 0.35);
+    white-space: nowrap;
+  }
+
+  .tab:hover {
+    background: linear-gradient(135deg, var(--primary-light), var(--primary));
+    box-shadow:
+      0 10px 18px rgba(15, 23, 42, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.16);
+    transform: translateY(-1px);
+    filter: brightness(1.03);
+  }
+
+  .tab:active {
+    transform: translateY(2px);
+    box-shadow:
+      0 3px 6px rgba(15, 23, 42, 0.6),
+      0 0 0 1px rgba(15, 23, 42, 0.6);
+    filter: brightness(0.97);
+  }
+
+  .tab.active {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    box-shadow:
+      0 7px 0 rgba(21, 128, 61, 0.9),
+      0 0 0 1px rgba(34, 197, 94, 0.7);
+  }
+
+  /* “Pontgyűjtés” rangválasztó blokk */
+  #rank-selection {
+    max-width: 1100px;
+    margin: 16px auto 0;
+  }
+
+  .rang-container {
+    text-align: center;
+    margin: 8px 0 16px;
+  }
+
+  /* Tartalmi kártyák – glassmorphism + fade-in */
+  .content {
+    display: none;
+    max-width: 1100px;
+    margin: 16px auto 0;
+    padding: 20px 18px 24px;
+    border-radius: var(--radius-card);
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.92));
+    box-shadow: var(--shadow-soft);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    backdrop-filter: blur(10px);
+    animation: fadeInUp 0.25s ease;
+  }
+
+  .content.active {
+    display: block;
+  }
+
+  /* Nagy pontszám kijelzés */
+  .score {
+    font-size: 60px;
+    text-align: center;
+    margin: 20px 0 8px;
+    font-weight: 800;
+    color: var(--primary-dark);
+    text-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
+  }
+
+  /* Táblázat wrapper – görgethető mobilon is */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Táblázatok – modern kártya stílus */
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: 18px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+    margin: 12px auto 0;
+  }
+
+  .table th,
+  .table td {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    padding: 10px 12px;
+    text-align: center;
+    white-space: normal;
+    word-wrap: break-word;
+    font-size: 0.95rem;
+  }
+
+  .table th {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    color: #f9fafb;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-shadow: 0 1px 2px rgba(15, 23, 42, 0.55);
+  }
+
+  .table tr:nth-child(even) td {
+    background: rgba(248, 250, 252, 0.9);
+  }
+
+  .table tr:hover td {
+    background: rgba(219, 234, 254, 0.9);
+  }
+
+  /* Több táblázat egymás mellett – marad, csak modernebb */
+  .tables-container {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .table-container {
+    flex: 1 1 30%;
+    min-width: 260px;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 20px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+    padding: 12px 10px 16px;
+  }
+
+  /* Általános gomb stílus (rang, pontok, stb.) – 3D, animált */
+  .button,
+  .buy-button,
+  #lostPointsButton,
+  #lostPointsYesButton,
+  #lostPointsNoButton,
+  #confirmPurchase,
+  #cancelPurchase,
+  #kisorsolasYesButton,
+  #kisorsolasNoButton,
+  #yesCalendarButton,
+  #noCalendarButton {
+    font-size: 18px;
+    padding: 10px 22px;
+    margin: 8px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    display: inline-block;
+    color: #f9fafb;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    box-shadow:
+      0 7px 0 rgba(15, 23, 42, 0.7),
+      0 10px 22px rgba(15, 23, 42, 0.4);
+    transform: translateY(0);
+    transition:
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      filter 0.18s ease,
+      background 0.18s ease;
+    text-shadow: 0 1px 2px rgba(15, 23, 42, 0.4);
+  }
+
+  .button:hover,
+  .buy-button:hover,
+  #lostPointsButton:hover,
+  #lostPointsYesButton:hover,
+  #lostPointsNoButton:hover,
+  #confirmPurchase:hover,
+  #cancelPurchase:hover,
+  #kisorsolasYesButton:hover,
+  #kisorsolasNoButton:hover,
+  #yesCalendarButton:hover,
+  #noCalendarButton:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 10px 0 rgba(15, 23, 42, 0.7),
+      0 14px 30px rgba(15, 23, 42, 0.5);
+    filter: brightness(1.05);
+  }
+
+  .button:active,
+  .buy-button:active,
+  #lostPointsButton:active,
+  #lostPointsYesButton:active,
+  #lostPointsNoButton:active,
+  #confirmPurchase:active,
+  #cancelPurchase:active,
+  #kisorsolasYesButton:active,
+  #kisorsolasNoButton:active,
+  #yesCalendarButton:active,
+  #noCalendarButton:active {
+    transform: translateY(2px);
+    box-shadow:
+      0 3px 0 rgba(15, 23, 42, 0.75),
+      0 7px 14px rgba(15, 23, 42, 0.5);
+    filter: brightness(0.97);
+  }
+
+  /* Rang gombok szélessége marad */
+  .rang-button {
+    margin-left: 10px;
+    margin-right: 10px;
+    width: 150px;
+  }
+
+  /* Buy gomb színe */
+  .buy-button {
+    background: linear-gradient(135deg, #0ea5e9, #0369a1);
+  }
+
+  /* “Elveszett pontok beváltása” – pirosas 3D gomb */
+  #lostPointsButton,
+  #lostPointsNoButton,
+  #kisorsolasNoButton,
+  #noCalendarButton,
+  #cancelPurchase {
+    background: linear-gradient(135deg, #f97373, #b91c1c);
+  }
+
+  #lostPointsYesButton,
+  #kisorsolasYesButton,
+  #yesCalendarButton,
+  #confirmPurchase {
+    background: linear-gradient(135deg, #22c55e, #15803d);
+  }
+
+  /* Modal overlay + tartalom – középre, glass, animáció */
+  .modal {
+    display: none; /* alapból rejtve, JS jeleníti meg */
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    background: radial-gradient(circle at top, rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.88));
+    backdrop-filter: blur(12px);
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+/* A modal ablak belső tartalmának stílusa */
+/* Modal ablak finomítása */
+.modal-content {
+  background-color: #ffffff;
+  margin: auto; 
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 40px 30px; /* Több hely a gombnak és a szövegnek */
+  border: none;       /* Modern keret nélkül */
+  width: 90%;
+  max-width: 450px;
+  border-radius: 20px; /* Lekerekített sarkok a UX szerint */
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  text-align: center;
+  z-index: 1001;
+}
+
+/* A szöveg méretének további növelése (+2 mérettel a korábbihoz képest) */
+#modalMessage {
+  font-size: 2.5rem !important; /* Extra nagy méret */
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.3;
+  margin-bottom: 30px;
+  display: block;
+}
+
+/* Új, az alkalmazás 3D stílusához igazított OK gomb */
+.modal-ok-button {
+  display: inline-block;
+  width: 100%;
+  margin-top: 15px;
+  padding: 18px 40px;      /* Extra nagy padding */
+  font-size: 2.2rem;       /* Hatalmas betűméret érintőhöz */
+  font-weight: 800;
+  color: #f9fafb;
+  text-shadow: 0 1px 2px rgba(15, 23, 42, 0.4);
+  
+  /* 3D-s kék gradiens (mint a többi gombnál) */
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border: none;
+  border-radius: 16px;     /* Lekerekített, de nem teljesen pill */
+  cursor: pointer;
+  
+  /* A kért 3D hatású árnyék */
+  box-shadow: 
+    0 8px 0 rgba(15, 23, 42, 0.6), 
+    0 12px 25px rgba(15, 23, 42, 0.4);
+    
+  transform: translateY(0);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Lenyomás effektus (3D gomb benyomódik) */
+.modal-ok-button:active {
+  transform: translateY(4px); /* Lefelé mozdul */
+  box-shadow: 
+    0 3px 0 rgba(15, 23, 42, 0.7), 
+    0 6px 12px rgba(15, 23, 42, 0.5);
+  filter: brightness(0.95);
+}
+
+/* Kifejezetten az üzenet szövegére vonatkozó méret */
+#modalMessage, #kisorsolasMessage, #purchaseMessage, #errorMessage {
+  font-size: 1.5rem !important; /* Itt éred el a +3 méret körüli növekedést */
+  line-height: 1.4;
+  margin-bottom: 20px;
+}
+
+  .modal-content p {
+    margin-bottom: 16px;
+  }
+
+  /* Loader – modern, több színű kör animáció */
+  .loader {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    width: 64px;
+    height: 64px;
+    border: 6px solid rgba(255, 255, 255, 0.4);
+    border-top-color: #3b82f6;
+    border-right-color: #22c55e;
+    border-bottom-color: #ec4899;
+    border-left-color: rgba(148, 163, 184, 0.4);
+    animation: spin 1.1s linear infinite, glow 1.6s ease-in-out infinite;
+    box-shadow: 0 0 18px rgba(59, 130, 246, 0.5);
+    z-index: 1300;
+  }
+
+  /* Speciális táblázat: vásárlás */
+  #purchaseTable,
+  #cardPurchaseTable {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  #purchaseTable th,
+  #purchaseTable td,
+  #cardPurchaseTable th,
+  #cardPurchaseTable td {
+    padding: 10px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #purchaseTable th,
+  #cardPurchaseTable th {
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: 150px;
+  }
+
+  #purchaseTable td:first-child,
+  #cardPurchaseTable td:first-child {
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: 180px;
+  }
+
+  #purchaseTable td,
+  #cardPurchaseTable td {
+    word-wrap: break-word;
+  }
+
+  .quantity-input {
+    width: 56px;
+    padding: 4px 6px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.8);
+    font-size: 0.9rem;
+    text-align: center;
+    outline: none;
+    transition: box-shadow 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  .quantity-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    background: #ffffff;
+  }
+
+  /* Egyenleg szövegek */
+  #balance,
+  #cardPurchaseBalance,
+  #specialToolsPurchaseBalance,
+  #availableBalance,
+  #lostPoints,
+  #redemptionInfo,
+  #redemptionInfoText,
+  #monthlyPoints {
+    text-align: center;
+  }
+
+  #redemptionInfoText,
+  #monthlyPoints {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 16px 0;
+  }
+
+  #monthlyPoints {
+    color: var(--primary-dark);
+  }
+
+  /* Úrnő / Domina / Fenséges Úrnő blokkok – finom színezés */
+  #urnoe {
+    background: radial-gradient(circle at top left, #e0f2fe, #ffffff);
+  }
+
+  #domina {
+    background: radial-gradient(circle at top left, #fce7f3, #ffffff);
+  }
+
+  #fensesUrono {
+    background: radial-gradient(circle at top left, #ede9fe, #ffffff);
+  }
+
+  #fenykepMulasztas {
+    background: radial-gradient(circle at top left, #fef9c3, #ffffff);
+  }
+
+  /* Headerek */
+  .header h2 {
+    font-weight: 700;
+    font-size: 24px;
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  /* Alap animációk */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 8px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes spin {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 12px rgba(59, 130, 246, 0.6); }
+    50% { box-shadow: 0 0 24px rgba(236, 72, 153, 0.75); }
+  }
+
+  /* 🔹 ÉRINTŐKÉPERNYŐS ESZKÖZÖK – nagyobb betűk, nagyobb tabok, nagyobb táblázat */
+  @media (pointer: coarse) {
+    body {
+      padding: 16px 8px 24px;
+      font-size: 30px;
+      line-height: 1.4;
+    }
+
+    #main-tabs {
+      margin: -16px -8px 18px;
+      padding: 10px 10px 14px;
+      justify-content: flex-start;
+      overflow-x: auto;
+    }
+
+    .tab,
+    #other-tabs .tab,
+    #summary-tabs .tab {
+      font-size: 2.5rem;
+      padding: 15px 25px;
+      margin: 6px;
+    }
+
+    .content {
+      padding: 16px 14px 20px;
+      border-radius: 18px;
+    }
+
+    /* Táblázat fejlécek és adatok – jóval nagyobbak érintőn */
+    .table th {
+      font-size: 1.6rem;
+      padding: 14px 14px;
+    }
+
+    .table td {
+      font-size: 1.8rem;
+      padding: 14px 14px;
+    }
+
+    .table-container {
+      flex: 1 1 100%;
+    }
+
+    /* Gombok nagyobbra, könnyebb tappolásra */
+    .button,
+    .buy-button,
+    #lostPointsButton,
+    #lostPointsYesButton,
+    #lostPointsNoButton,
+    #confirmPurchase,
+    #cancelPurchase,
+    #kisorsolasYesButton,
+    #kisorsolasNoButton,
+    #yesCalendarButton,
+    #noCalendarButton {
+      font-size: 2rem;
+      padding: 12px 26px;
+    }
+
+    #urnoe button,
+    #domina button,
+    #fensesUrono button,
+    #fenykepMulasztas button {
+      font-size: 2.5rem;
+      padding: 10px 20px;
+    }
+
+    #balance,
+    #cardPurchaseBalance,
+    #specialToolsPurchaseBalance {
+      font-size: 2rem;
+      font-weight: bold;
+      text-align: center;
+    }
+
+  /* ✅ SORTÖRÉS + HELYES SZÓELVÁLASZTÁS TÁBLÁZATOKHOZ */
+  .table,
+  .table th,
+  .table td,
+  #purchaseTable td,
+  #purchaseTable th,
+  #cardPurchaseTable td,
+  #cardPurchaseTable th {
+    white-space: normal !important;   /* ✅ engedi a több sort */
+    word-break: normal !important;    /* ✅ nem tör szét szavakat */
+    overflow-wrap: break-word !important; /* ✅ szóköznél tör */
+    hyphens: auto;                    /* ✅ nyelvhelyes elválasztás */
+  }
+
+  /* ✅ FIX TÁBLÁZATELRENDEZÉS – nem feszíti szét a képernyőt */
+  .table,
+  #purchaseTable,
+  #cardPurchaseTable {
+    table-layout: fixed !important;
+    width: 100% !important;
+  }
+
+  /* ✅ PONTBEVÁLTÁS TAB – MINDEN SZÖVEG EGYSÉGESEN NAGYOBB ÉRINTŐN */
+
+  /* Cím: Pontbeváltás */
+  #redemption h2 {
+    font-size: 2.4rem !important;
+    margin-bottom: 18px;
+  }
+
+  /* Összes szöveg a Pontbeváltás dobozban (label + normál szöveg) */
+  #redemption span {
+    font-size: 1.8rem !important;      /* kb. +2 méret az eredeti 18px-hez képest */
+    line-height: 1.35;
+  }
+
+  /* Kiírt értékek: pontszámok – legyenek egy picit nagyobbak és félkövérek */
+  #redemption #monthlyPoints,
+  #redemption #usedBalance,
+  #redemption #availableBalance,
+  #redemption #lostPoints {
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+  }
+
+.purchase-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+  .purchase-card {
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+    padding: 14px 14px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+.purchase-card__title {
+  color: red;
+  font-size: 1.55rem;
+  font-weight: 900;
+  text-align: left;
+  margin-bottom: 10px;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+  .purchase-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding: 10px 0;
+    border-top: 1px solid rgba(148, 163, 184, 0.25);
+  }
+
+.purchase-row__label {
+  color: blue;                /* időtartamok kék */
+  font-size: 1.45rem;         /* +2 méret */
+  font-weight: 800;
+  text-align: left;
+  line-height: 1.15;
+}
+
+  .purchase-row__value {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+.purchase-row__price {
+  color: black;               /* pontok fekete */
+  font-size: 1.45rem;         /* +2 méret */
+  font-weight: 800;
+}
+
+  .purchase-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(148, 163, 184, 0.25);
+  }
+
+.purchase-total__label {
+  font-size: 1.55rem;   /* +3 méret */
+  font-weight: 900;
+}
+
+.purchase-total__value {
+  color: black;
+  font-size: 1.65rem;         /* +2 méret */
+  font-weight: 950;
+}
+
+  .purchase-actions {
+    margin-top: 10px;
+  }
+
+.purchase-actions .buy-button {
+  width: 100%;
+  margin: 0;
+  font-size: 1.5rem;
+  padding: 14px 18px;
+  font-weight: 800;           /* Megveszem félkövér */
+}
+
+.quantity-input {
+  width: 104px !important;
+  font-size: 1.35rem !important; /* +2 méret (és 16px felett marad) */
+  padding: 12px 14px !important;
+  height: 48px !important;
+}
+
+/* Vásárlás tab cím */
+#purchase > h2 {
+  font-size: 2.1rem;  /* +3 méret */
+  font-weight: 900;
+}
+
+/* Egyenleg szöveg a Vásárlás tabon */
+#purchase #balance {
+  font-size: 1.65rem !important;   /* +3 méret */
+  font-weight: 800;
+  line-height: 1.25;
+}
+#purchase #balance strong {
+  font-weight: 950;
+}
+
+
+}
+</style>

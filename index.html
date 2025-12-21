@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Pontgyűjtő</title>
+
+  <link rel="manifest" href="?manifest=1">
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/dml7b81n6/image/upload/v1765280307/Pontgyujto_ikon_upsfe1.png">
+  <link rel="apple-touch-icon" href="https://res.cloudinary.com/dml7b81n6/image/upload/v1765280307/Pontgyujto_ikon_upsfe1.png">
+
+  <?!= include('css'); ?>
+</head>
+<body>
+<!-- Fő tabok -->
+<div id="main-tabs" class="tab-container">
+  <button id="tab-main" class="tab active" onclick="showContent('main')">Főoldal</button>
+  <button id="tab-redemption" class="tab" onclick="showContent('redemption')">Pontbeváltás</button>
+  <button id="tab-summaries" class="tab" onclick="showContent('summaries')">Összesítők</button>
+  <button id="tab-generator" class="tab" onclick="openGenerator()">Domina Enik Büntetőoldala</button>
+  <button id="tab-megjelenites" class="tab" onclick="openMegjelenites()">Büntetés nyilvántartás</button>
+  <button id="tab-gps" class="tab" onclick="openGps()">Rabszolga GPS</button>
+</div>
+
+<!-- Rangválasztás szekció -->
+<div id="rank-selection">
+  <div class="rang-container">
+    <h2>Pontgyűjtés</h2>
+  </div>
+  <div class="tab-container">
+    <button class="tab" onclick="showContent('urnoe')">Úrnő</button>
+    <button class="tab" onclick="showContent('domina')">Domina</button>
+    <button class="tab" onclick="showContent('fensesUrono')">Fenséges Úrnő</button>
+    <button class="tab" onclick="showContent('fenykepMulasztas')">Fénykép mulasztás</button>
+    <button class="tab" onclick="showContent('pontjovairas')">Pont jóváírás</button>
+  </div>
+</div>
+
+<!-- Összesítők tabon belüli gombok -->
+<div id="summary-tabs" class="tab-container" style="display: none;">
+  <button id="tab-daily" class="tab" onclick="showContent('daily')">Napi összesítők</button>
+  <button id="tab-weekly" class="tab" onclick="showContent('weekly')">Heti összesítők</button>
+  <button id="tab-monthly" class="tab" onclick="showContent('monthly')">Havi összesítők</button>
+  <button id="tab-last7Days" class="tab" onclick="showContent('last7Days')">Elmúlt 7 nap eseményei</button>
+</div>
+
+ <!-- Pontbeváltás tabon belüli gombok -->
+  <div id="other-tabs" class="tab-container" style="display: none;">
+  <button id="tab-priceList" class="tab" onclick="showContent('priceList')">Árlista</button>
+  <button id="tab-purchase" class="tab" onclick="showContent('purchase')">Büntetés vásárlása</button>
+  <button id="tab-cardPurchase" class="tab" onclick="showContent('cardPurchase')">Kártyavásárlás</button>
+  <button id="tab-specialTools" class="tab" onclick="showContent('specialToolsPurchaseTab')">Speciális termékek vásárlása</button>
+  <button id="tab-eladott" class="tab" onclick="showContent('eladott')">Eladott büntetések</button>
+
+
+  </div>
+
+  <!-- Főoldal Tartalma -->
+  <div id="main" class="content active">
+    <!-- Szöveg a pontok összesítő felett -->
+    <div class="header">
+      <h2 id="pontszam-osszegzo">Napi büntetőpont és összefoglalója:</h2>
+    </div>
+
+    <!-- Összesített pontok kijelzése -->
+    <div class="score" id="totalPoints">0</div>
+
+    <!-- Loader a betöltéshez -->
+    <div class="loader" id="loader-main" style="display:none;"></div>
+
+    <!-- Pontok táblázat -->
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Dátum</th>
+          <th>Büntetést kiszabta</th>
+          <th>Büntetési kategória</th>
+          <th>Engedetlenség típusa</th>
+          <th>Összesített pontok</th>
+        </tr>
+      </thead>
+      <tbody id="pointsTable">
+        <!-- Itt jelennek meg a pontok -->
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Napi Összesítők -->
+  <div id="daily" class="content">
+    <h2>Napi Összesítők</h2>
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Dátum</th>
+            <th>Összesített pont</th>
+          </tr>
+        </thead>
+        <tbody id="dailySummary">
+          <!-- Napi összesítő adatok -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Heti Összesítők -->
+<div id="weekly" class="content">
+  <h2>Heti Összesítők</h2>
+  <div class="table-responsive">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Hét</th>
+          <th>Összesített pont</th>
+          <th>Úrnő jutalomra jogosult</th>
+          <th>Kisorsolva</th>
+        </tr>
+      </thead>
+      <tbody id="weeklySummary">
+        <!-- Heti összesítő adatok -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+  <!-- Havi Összesítők -->
+<div id="monthly" class="content">
+  <h2>Havi Összesítők</h2>
+  <div class="table-responsive">
+    <div id="monthlySummary"></div>
+  </div>
+</div>
+
+  <!-- Elmúlt 7 nap eseményei -->
+  <div id="last7Days" class="content">
+    <h2>Elmúlt 7 nap eseményei</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Dátum</th>
+          <th>Összesített pontok</th>
+          <th>Büntetést kiszabta</th>
+          <th>Büntetési kategória</th>
+          <th>Engedetlenség típusa</th>
+        </tr>
+      </thead>
+      <tbody id="last7DaysTable">
+        <!-- Események betöltése -->
+      </tbody>
+    </table>
+  </div>
+
+<!-- Generátor Tartalma -->
+<div id="generator" class="content">
+  <h2>Domina Enik Büntetőoldala</h2>
+  <!-- Itt fog megjelenni a beágyazott alkalmazás vagy link -->
+  <div id="generatorContent"></div>
+</div>
+
+<!-- Megjelenítés Tartalma -->
+<div id="megjelenites" class="content">
+  <h2>Megjelenítés</h2>
+  <!-- Itt adhatod meg a megjelenítéshez szükséges tartalmat -->
+</div>
+
+  <!-- Úrnő Tartalma -->
+  <div id="urnoe" class="content">
+    <h2>Úrnő Tartalma</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Büntetési kategória</th>
+          <th>Büntetési tételek</th>
+          <th>Büntetőgomb</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Enyhe</td>
+          <td>Megfelelő név elmulasztása, engedély nélküli fogdosás</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(10, 'Úrnő', 'Enyhe', 'Megfelelő név elmulasztása')">+10 pont</button></td>
+        </tr>
+        <tr>
+          <td>Közepes</td>
+          <td>Szemtelenkedés, szófogadatlanság</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(20, 'Úrnő', 'Közepes', 'Szemtelenkedés')">+20 pont</button></td>
+        </tr>
+        <tr>
+          <td>Súlyos</td>
+          <td>Szexuális cselekmény megtagadása, büntetés végre nem hajtása</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(30, 'Úrnő', 'Súlyos', 'Szexuális cselekmény megtagadása')">+30 pont</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Domina Tartalma -->
+  <div id="domina" class="content">
+    <h2>Domina Tartalma</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Büntetési kategória</th>
+          <th>Büntetési tételek</th>
+          <th>Büntetőgomb</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Enyhe</td>
+          <td>Megfelelő név elmulasztása, engedély nélküli fogdosás</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(20, 'Domina', 'Enyhe', 'Megfelelő név elmulasztása')">+20 pont</button></td>
+        </tr>
+        <tr>
+          <td>Közepes</td>
+          <td>Szemtelenkedés, szófogadatlanság</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(30, 'Domina', 'Közepes', 'Szemtelenkedés')">+30 pont</button></td>
+        </tr>
+        <tr>
+          <td>Súlyos</td>
+          <td>Szexuális cselekmény megtagadása, büntetés végre nem hajtása</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(40, 'Domina', 'Súlyos', 'Szexuális cselekmény megtagadása')">+40 pont</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Fenséges Úrnő Tartalma -->
+  <div id="fensesUrono" class="content">
+    <h2>Fenséges Úrnő Tartalma</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Büntetési kategória</th>
+          <th>Büntetési tételek</th>
+          <th>Büntetőgomb</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Enyhe</td>
+          <td>Megfelelő név elmulasztása, engedély nélküli fogdosás</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(30, 'Fenséges Úrnő', 'Enyhe', 'Megfelelő név elmulasztása')">+30 pont</button></td>
+        </tr>
+        <tr>
+          <td>Közepes</td>
+          <td>Szemtelenkedés, szófogadatlanság</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(40, 'Fenséges Úrnő', 'Közepes', 'Szemtelenkedés')">+40 pont</button></td>
+        </tr>
+        <tr>
+          <td>Súlyos</td>
+          <td>Szexuális cselekmény megtagadása, büntetés végre nem hajtása</td>
+          <td><button class="button rang-button" onclick="addPointsWithDetails(50, 'Fenséges Úrnő', 'Súlyos', 'Szexuális cselekmény megtagadása')">+50 pont</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+<!-- Fénykép Mulasztás Tartalma -->
+<div id="fenykepMulasztas" class="content">
+  <h2>Fénykép Mulasztás</h2>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Büntetési kategória</th>
+        <th>Mulasztás mértéke</th>
+        <th>Büntetőgomb</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Enyhe</td>
+        <td>Határidőn túl, de 10 percen belül megküldött fénykép</td>
+        <td>
+          <button class="button rang-button" onclick="addPointsWithDetails(25, 'Fénykép mulasztás', 'Enyhe', 'Határidőn túl, de 10 percen belül megküldött fénykép')">+25 pont</button>
+        </td>
+      </tr>
+      <tr>
+        <td>Közepes</td>
+        <td>Határidőn túl, de 60 percen belül megküldött fénykép</td>
+        <td>
+          <button class="button rang-button" onclick="addPointsWithDetails(100, 'Fénykép mulasztás', 'Közepes', 'Határidőn túl, de 60 percen belül megküldött fénykép')">+100 pont</button>
+        </td>
+      </tr>
+      <tr>
+        <td>Súlyos</td>
+        <td>Határidőn túl, de 60 percen túl vagy egyáltalán meg nem küldött fénykép</td>
+        <td>
+          <button class="button rang-button" onclick="addPointsWithDetails(250, 'Fénykép mulasztás', 'Súlyos', 'Határidőn túl, de 60 percen túl vagy egyáltalán meg nem küldött fénykép')">+250 pont</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="pontjovairas" class="content">
+  <h2>Pont jóváírás</h2>
+  <div style="display:flex; gap:20px; justify-content:center; align-items:center;">
+    <div>
+      <label for="point-value">Jóváírandó / Levonandó pont:</label><br>
+      <input type="number" id="point-value" placeholder="Pl. 50 vagy -50">
+    </div>
+    <div>
+      <label for="point-reason">Levonás / Jóváírás oka:</label><br>
+      <input type="text" id="point-reason" placeholder="Pl. késés jóváírása">
+    </div>
+  </div>
+  <div style="text-align:center; margin-top:20px;">
+    <button class="button" onclick="submitPointCredit()">Rögzít</button>
+  </div>
+</div>
+
+  <div id="redemption" class="content" style="text-align: center; margin-top: 50px;">
+  <h2>Pontbeváltás</h2>
+
+<div id="pontjovairas" class="content">
+  <h2>Pont jóváírás</h2>
+  <div style="display:flex; gap:20px; justify-content:center; align-items:center;">
+    <div>
+      <label for="point-value">Jóváírandó / Levonandó pont:</label><br>
+      <input type="number" id="point-value" placeholder="Pl. 50 vagy -50">
+    </div>
+    <div>
+      <label for="point-reason">Levonás / Jóváírás oka:</label><br>
+      <input type="text" id="point-reason" placeholder="Pl. késés jóváírása">
+    </div>
+  </div>
+  <div style="text-align:center; margin-top:20px;">
+    <button class="button" onclick="submitPointCredit()">Rögzít</button>
+  </div>
+</div>
+
+ 
+  <!-- Ebben a hónapban gyűjtött pontok -->
+  <div style="margin-bottom: 10px;">
+    <span style="font-size: 18px;">Összegyűjtött pontok:</span>
+    <span id="monthlyPoints" style="font-size: 20px; font-weight: bold;"></span> <!-- Az aktuális havi pontok -->
+  </div>
+
+  <!-- Felhasznált egyenleg -->
+  <div style="margin-bottom: 10px;">
+    <span style="font-size: 18px;">Felhasznált egyenleg:</span>
+    <span id="usedBalance" style="font-size: 20px; font-weight: bold;"></span> <!-- Balance sheet B4 cella értéke -->
+  </div>
+
+  <!-- Jelenleg felhasználható egyenleg -->
+  <div style="margin-bottom: 20px;">
+    <span style="font-size: 18px;">Jelenleg felhasználható egyenleg:</span>
+    <span id="availableBalance" style="font-size: 20px; font-weight: bold;"></span> <!-- Balance sheet B3 cella értéke -->
+  </div>
+
+<!-- Elveszett pontok kiírása -->
+<div style="text-align: center; margin-bottom: 10px;">
+  <span style="font-size: 18px;">Elveszett pontok:</span>
+  <span id="lostPoints" style="font-size: 20px; font-weight: bold;"></span>
+</div>
+
+<!-- Gomb középre igazítva -->
+<div style="text-align: center; margin-bottom: 20px;">
+  <button id="lostPointsButton"
+          style="background-color: red; color: white; font-weight: bold; padding: 10px 20px; border: none; cursor: pointer;"
+          onclick="openLostPointsModal()">
+    Elveszett pontok beváltása
+  </button>
+</div>
+
+  <!-- Pontok felhasználhatóságának információja -->
+  <div>
+    <span id="redemptionInfo" style="font-size: 18px;"></span> <!-- Felhasználhatósági információ visszaállítása -->
+  </div>
+
+</div>
+
+
+
+  <!-- Árlista tab tartalma -->
+  <div id="priceList" class="content">
+    <h2>Árlista</h2>
+    <table id="priceListTable" class="table">
+      <!-- Itt jelenik meg az árlista -->
+    </table>
+  </div>
+
+ <!-- Büntetés vásárlása tab tartalma -->
+<div id="purchase" class="content">
+  <h2>Vásárlás</h2>
+  <div id="balance" style="text-align:center; font-size:18px; margin-bottom:20px;"></div>
+  <div id="purchaseContent"></div>
+</div>
+
+<!-- Eladott büntetések tab tartalma -->
+<div id="eladott" class="content">
+  <h2>Eladott büntetések</h2>
+  <div id="eladottContent"></div> <!-- Itt jelenik meg az eladott büntetések tartalma -->
+</div>
+
+<!-- Kártyavásárlás tartalma -->
+<div id="cardPurchase" class="content">
+  <h2>Kártyavásárlás</h2>
+  <div id="cardPurchaseBalance" style="text-align:center; font-size:18px; margin-bottom:20px;"></div>
+  <div id="cardPurchaseContent"></div>
+</div>
+
+<!-- Speciális termékek vásárlása tab -->
+<div id="specialToolsPurchaseTab" class="content">
+  <h2>Speciális termékek vásárlása</h2>
+  <div id="specialToolsPurchaseBalance" style="text-align:center; font-size:18px; margin-bottom:20px;"></div>
+  <div id="specialToolsPurchaseContent"></div>
+</div>
+
+<!-- Folyamatjelző (teljes képernyőn) -->
+<div id="loadingSpinner" class="loader" style="display:none;"></div>
+
+<div id="kisorsolasModal" class="modal">
+  <div class="modal-content">
+    <p id="kisorsolasMessage">Biztosan kisorsolásra került a jutalom? A mező kijelölése nem vonható vissza!</p>
+    <button id="kisorsolasYesButton" style="background-color: #28a745; color: white;">Igen</button>
+    <button id="kisorsolasNoButton" style="background-color: #dc3545; color: white;">Nem</button>
+  </div>
+</div>
+
+<!-- Vásárlást megerősítő modal ablak -->
+<div id="purchaseModal" class="modal">
+  <div class="modal-content">
+    <p id="purchaseMessage"></p>
+    <button id="confirmPurchase" onclick="confirmPurchase()">Igen</button> <!-- Zöld gomb -->
+    <button id="cancelPurchase" onclick="closeModal()">Nem</button> <!-- Piros gomb -->
+  </div>
+</div>
+
+<div id="errorModal" class="modal">
+  <div class="modal-content">
+    <p id="errorMessage"></p>
+    <button onclick="closeErrorModal()">OK</button>
+  </div>
+</div>
+
+<div id="lostPointsModal" class="modal">
+  <div class="modal-content">
+    <p>Biztosan jogosult vagy a pont beváltására?</p>
+    <button id="lostPointsYesButton" style="background-color: #28a745; color: white; font-weight: bold;">Igen</button>
+    <button id="lostPointsNoButton" style="background-color: #dc3545; color: white; font-weight: bold;">Nem</button>
+  </div>
+</div>
+
+<div id="successModal" class="modal">
+  <div class="modal-content">
+    <div id="modalMessage"></div>
+  </div>
+</div>
+
+<div id="noSelectionModal" class="modal">
+  <div class="modal-content">
+    <p id="noSelectionMessage">Nincs kiválasztott büntetés.</p>
+    <button onclick="closeNoSelectionModal()">OK</button>
+  </div>
+</div>
+
+<!-- Naptárbejegyzés kérdése modal ablak -->
+<div id="calendarModal" class="modal">
+  <div class="modal-content">
+    <p id="calendarMessage"></p>
+    <button id="yesCalendarButton">Igen</button> <!-- Zöld gomb -->
+    <button id="noCalendarButton">Nem</button> <!-- Piros gomb -->
+  </div>
+</div>
+
+<?!= include('java'); ?>
+
+</body>
+</html>

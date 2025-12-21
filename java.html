@@ -1,0 +1,1392 @@
+<script>
+
+var kisorsolasWeekNumber = null;
+var kisorsolasCheckbox = null;
+
+function handleKisorsolvaClick(weekNumber, checkbox) {
+  // Ha a felhasználó pipa nélkül kattint, nem kell csinálni semmit, mivel csak akkor kérdezünk rá, ha kipipálta
+  if (checkbox.checked) {
+    kisorsolasWeekNumber = weekNumber;
+    kisorsolasCheckbox = checkbox;
+    // Megjelenítjük a modalt
+    document.getElementById('kisorsolasModal').style.display = 'block';
+  }
+}
+
+function handleMonthlyKisorsolvaClick(month, type, checkbox) {
+  if (checkbox.checked) {
+    // Ha bepipálta, akkor kérdezzük meg a modallal
+    document.getElementById('kisorsolasMessage').innerText = 'Biztosan kisorsolásra került? A mező kijelölése nem vonható vissza!';
+    document.getElementById('kisorsolasModal').style.display = 'block';
+
+    // Globális változókba mentjük az értékeket
+    window.monthlyKisorsolvaMonth = month;
+    window.monthlyKisorsolvaType = type;
+    window.monthlyKisorsolvaCheckbox = checkbox;
+  } else {
+    // Ha kikattintotta, nem csinálunk semmit
+  }
+}
+
+document.getElementById('kisorsolasYesButton').addEventListener('click', function() {
+  // Ha havi jelölés áll fenn
+  if (typeof window.monthlyKisorsolvaMonth !== 'undefined' && typeof window.monthlyKisorsolvaType !== 'undefined') {
+    // Havi kisorsolás logika
+    google.script.run
+      .withSuccessHandler(function() {
+        if (window.monthlyKisorsolvaCheckbox) {
+          window.monthlyKisorsolvaCheckbox.disabled = true;
+        }
+        closeKisorsolasModal();
+        delete window.monthlyKisorsolvaMonth;
+        delete window.monthlyKisorsolvaType;
+        delete window.monthlyKisorsolvaCheckbox;
+      })
+      .withFailureHandler(function(error) {
+        alert('Hiba történt a jelölés mentésekor: ' + error.message);
+        if (window.monthlyKisorsolvaCheckbox) {
+          window.monthlyKisorsolvaCheckbox.checked = false;
+        }
+        closeKisorsolasModal();
+        delete window.monthlyKisorsolvaMonth;
+        delete window.monthlyKisorsolvaType;
+        delete window.monthlyKisorsolvaCheckbox;
+      })
+      .setMonthlyKisorsolva(window.monthlyKisorsolvaMonth, window.monthlyKisorsolvaType);
+  } else if (kisorsolasWeekNumber !== null && kisorsolasCheckbox !== null) {
+    // Heti kisorsolás logika
+    google.script.run
+      .withSuccessHandler(function() {
+        if (kisorsolasCheckbox) {
+          kisorsolasCheckbox.disabled = true;
+        }
+        closeKisorsolasModal();
+      })
+      .withFailureHandler(function(error) {
+        alert('Hiba történt a jelölés mentésekor: ' + error.message);
+        if (kisorsolasCheckbox) {
+          kisorsolasCheckbox.checked = false;
+        }
+        closeKisorsolasModal();
+      })
+      .setKisorsolva(kisorsolasWeekNumber);
+  } else {
+    // Sem havi, sem heti adatok nincsenek, egyszerűen zárjuk a modalt
+    closeKisorsolasModal();
+  }
+});
+
+function openLostPointsModal() {
+  // Alaphelyzetbe állítjuk az IGEN és NEM gombok stílusát
+  var yesBtn = document.getElementById('lostPointsYesButton');
+  var noBtn = document.getElementById('lostPointsNoButton');
+
+  if (yesBtn && noBtn) {
+    yesBtn.style.opacity = "";
+    yesBtn.style.pointerEvents = "";
+    noBtn.style.opacity = "";
+    noBtn.style.pointerEvents = "";
+  }
+
+  // Megnyitjuk a modalt
+  document.getElementById('lostPointsModal').style.display = 'block';
+}
+
+// --- Javított IGEN gomb eseménykezelő ---
+var yesBtn = document.getElementById('lostPointsYesButton');
+if (yesBtn) {
+  var noBtn = document.getElementById('lostPointsNoButton'); // Biztosítjuk, hogy a noBtn is elérhető
+  yesBtn.addEventListener('click', function() {
+    // 1) Rögtön kattintáskor halványítjuk és kikapcsoljuk a két gombot,
+    //    hogy látható legyen a kattintás megtörtént.
+    yesBtn.style.opacity = "0.5";
+    noBtn.style.opacity = "0.5";
+    yesBtn.style.pointerEvents = "none";
+    noBtn.style.pointerEvents = "none";
+
+    // 2) Elindítjuk a szerveroldali hívást
+    google.script.run
+      .withSuccessHandler(function(redeemedAmount) {
+        // Bezárjuk a modalt
+        document.getElementById('lostPointsModal').style.display = 'none';
+        // Mutatunk egy modal- vagy showModal() üzenetet
+        showModal(
+          "Az elveszett pontok hozzáadódtak a pontjaidhoz. " +
+          "Az így gyűjtött pontokat a következő hónap 15. napjáig tudod felhasználni.",
+          false,
+          function() {
+            // Modal OK gomb után újratöltjük a redemption adatokat
+            loadRedemptionInfo();
+          }
+        );
+      })
+      .withFailureHandler(function(error) {
+        console.error("Hiba történt az elveszett pontok beváltásakor:", error.message);
+        // Ha hiba történt, visszaállíthatjuk a gombokat, hogy újra lehessen próbálni:
+        yesBtn.style.opacity = "";
+        noBtn.style.opacity = "";
+        yesBtn.style.pointerEvents = "";
+        noBtn.style.pointerEvents = "";
+
+        // A modalt is bezárhatjuk, vagy hagyhatjuk nyitva:
+        document.getElementById('lostPointsModal').style.display = 'none';
+      })
+      .redeemLostPoints(); // a Kód.gs-ben létrehozott függvény
+  });
+}
+
+// --- Javított NEM gomb eseménykezelő ---
+var noBtn = document.getElementById('lostPointsNoButton');
+if (noBtn) {
+  var yesBtn = document.getElementById('lostPointsYesButton'); // Biztosítjuk, hogy a yesBtn is elérhető
+  noBtn.addEventListener('click', function() {
+    // 1) Rögtön kattintáskor halványítjuk és kikapcsoljuk a két gombot,
+    //    hogy látható legyen a kattintás megtörtént.
+    noBtn.style.opacity = "0.5";
+    yesBtn.style.opacity = "0.5";
+    noBtn.style.pointerEvents = "none";
+    yesBtn.style.pointerEvents = "none";
+
+    // 2) Bezárjuk a modalt
+    document.getElementById('lostPointsModal').style.display = 'none';
+  });
+}
+
+function closeKisorsolasModal() {
+  document.getElementById('kisorsolasModal').style.display = 'none';
+  kisorsolasWeekNumber = null;
+  kisorsolasCheckbox = null;
+}
+
+function submitPointCredit() {
+  var pointValue = document.getElementById('point-value').value;
+  var pointReason = document.getElementById('point-reason').value;
+
+  // Alap ellenőrzés, hogy megadta-e a felhasználó az értékeket
+  if (!pointValue || !pointReason) {
+    alert('Kérlek add meg a pontot és az okot!');
+    return;
+  }
+
+  // Folyamatjelző mutatása (opcionális, ha van)
+  document.getElementById('loadingSpinner').style.display = 'block';
+
+  google.script.run
+.withSuccessHandler(function() {
+  document.getElementById('loadingSpinner').style.display = 'none';
+  showModal('A pont jóváírás sikeres volt!', false, function() {
+    // Form ürítése a modal bezárása után
+    document.getElementById('point-value').value = '';
+    document.getElementById('point-reason').value = '';
+  });
+})
+    .withFailureHandler(function(error) {
+      document.getElementById('loadingSpinner').style.display = 'none';
+      alert('Hiba történt a rögzítés során: ' + error.message);
+    })
+    .addPointCredit(Number(pointValue), pointReason);
+}
+
+function askCalendarEntry(itemName, purchaseDetails) {
+  // Beállítjuk a modal üzenetét
+  document.getElementById('calendarMessage').innerText = 'Szeretnél naptárbejegyzést készíteni a büntetésről?';
+
+  // Beállítjuk az eseménykezelőket az Igen és Nem gombokra
+  document.getElementById('yesCalendarButton').onclick = function() {
+    // Bezárjuk a naptárbejegyzés kérdése modalt
+    document.getElementById('calendarModal').style.display = 'none';
+
+    // Meghívjuk a szerveroldali függvényt a feladatok létrehozásához
+    google.script.run
+      .withSuccessHandler(function() {
+        // Megjelenítjük a naptárbejegyzés megtörténtét jelző modalt
+        showModal('A naptárbejegyzések létrehozva.', false);
+      })
+      .withFailureHandler(function(error) {
+        console.error('Hiba történt a naptárbejegyzés létrehozása során: ', error);
+        showModal('Hiba történt a naptárbejegyzés létrehozása során.', false);
+      })
+      .createTasksForPenalty(itemName, purchaseDetails);
+  };
+
+  document.getElementById('noCalendarButton').onclick = function() {
+    // Bezárjuk a naptárbejegyzés kérdése modalt
+    document.getElementById('calendarModal').style.display = 'none';
+  };
+
+  // Megjelenítjük a naptárbejegyzés kérdése modalt
+  document.getElementById('calendarModal').style.display = 'block';
+}
+
+function calculateSpecialToolsCost(rowIndex) {
+  var quantityInput = document.getElementById('special-tools-quantity-' + rowIndex);
+  var quantity = parseInt(quantityInput.value) || 0;
+  var price = parseInt(quantityInput.getAttribute('data-price')) || 0;
+  
+  var totalCost = quantity * price;
+  var costElement = document.getElementById('special-tools-cost-' + rowIndex);
+  costElement.innerText = totalCost + ' pont';
+}
+
+function buySpecialTool(rowIndex) {
+  var quantityInput = document.getElementById('special-tools-quantity-' + rowIndex);
+  var quantity = parseInt(quantityInput.value) || 0;
+
+  if (quantity <= 0) {
+    alert('Adj meg egy érvényes darabszámot!');
+    return;
+  }
+
+  var totalCostElement = document.getElementById('special-tools-cost-' + rowIndex);
+  var totalCost = parseInt(totalCostElement.innerText) || 0;
+
+  // Folyamatjelző megjelenítése
+  document.getElementById('loadingSpinner').style.display = 'block';
+
+  // Egyenleg ellenőrzés
+  google.script.run
+    .withSuccessHandler(function(balance) {
+      document.getElementById('loadingSpinner').style.display = 'none';
+
+      if (balance < totalCost) {
+        showModal('Nincs elég egyenleg a vásárláshoz.');
+      } else {
+        // Vásárlás megerősítésére szolgáló modal ablak
+        document.getElementById('purchaseMessage').innerText = `Biztosan meg akarod venni ezt az eszközt ${totalCost} pontért?`;
+        document.getElementById('purchaseModal').style.display = 'block';
+
+        // Beállítjuk a megerősítő gomb attribútumait és eseménykezelőjét
+        var confirmButton = document.getElementById('confirmPurchase');
+        confirmButton.setAttribute('data-cost', totalCost);
+        confirmButton.setAttribute('data-row', rowIndex);
+        confirmButton.setAttribute('data-quantity', quantity);
+        confirmButton.setAttribute('data-purchase-type', 'specialToolPurchase');
+        confirmButton.onclick = confirmPurchase; // Eseménykezelő beállítása
+      }
+    })
+    .withFailureHandler(function(error) {
+      document.getElementById('loadingSpinner').style.display = 'none';
+      showModal('Hiba történt az egyenleg ellenőrzése közben: ' + error.message);
+    })
+    .getBalance();
+}
+
+function loadSpecialToolsPurchaseTable() {
+
+  // 1) Egyenleg betöltése
+  google.script.run
+    .withSuccessHandler(function(balanceText) {
+      document.getElementById('specialToolsPurchaseBalance').innerHTML = balanceText;
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error loading balance: ', error.message);
+    })
+    .getBalance();
+
+  // 2) Táblázat betöltése + mobilon kártyásítás
+  google.script.run
+    .withSuccessHandler(function(html) {
+      document.getElementById('specialToolsPurchaseContent').innerHTML = html;
+
+      if (isCoarsePointerDevice()) {
+        convertTableToCards('specialToolsPurchaseTable');
+      }
+    })
+    .withFailureHandler(function(error) {
+      showModal('Hiba történt a speciális eszközök vásárlási adatok betöltése közben: ' + error.message);
+    })
+    .loadSpecialToolsPurchaseList();
+}
+
+function calculateCardCost(rowIndex) {
+  var quantityInput = document.getElementById('card-quantity-' + rowIndex);
+  var quantity = parseInt(quantityInput.value) || 0;
+  var price = parseInt(quantityInput.getAttribute('data-price')) || 0;
+  
+  var totalCost = quantity * price;
+  var costElement = document.getElementById('card-cost-' + rowIndex);
+  costElement.innerText = totalCost + ' pont';
+}
+
+function buyCard(rowIndex) {
+  var quantityInput = document.getElementById('card-quantity-' + rowIndex);
+  var quantity = parseInt(quantityInput.value) || 0;
+
+  if (quantity <= 0) {
+    // Hibás mennyiség esetén figyelmeztető modal ablak használata
+    document.getElementById('errorMessage').innerText = 'Adj meg egy érvényes darabszámot!';
+    document.getElementById('errorModal').style.display = 'block';
+    return;
+  }
+
+  var totalCostElement = document.getElementById('card-cost-' + rowIndex);
+  var totalCost = parseInt(totalCostElement.innerText) || 0;
+
+  // Folyamatjelző megjelenítése
+  document.getElementById('loadingSpinner').style.display = 'block';
+
+  // Egyenleg ellenőrzés
+  google.script.run
+    .withSuccessHandler(function(balance) {
+      document.getElementById('loadingSpinner').style.display = 'none';
+
+      if (balance < totalCost) {
+        // Nincs elegendő egyenleg esetén modal ablak figyelmeztet
+        document.getElementById('errorMessage').innerText = 'Nincs elég egyenleg a vásárláshoz.';
+        document.getElementById('errorModal').style.display = 'block';
+      } else {
+        // Vásárlás megerősítésére szolgáló modal ablak
+        document.getElementById('purchaseMessage').innerText = `Biztosan meg akarod venni ezt a kártyát ${totalCost} pontért?`;
+        document.getElementById('purchaseModal').style.display = 'block';
+
+        // Beállítjuk a megerősítő gomb attribútumait és eseménykezelőjét
+        var confirmButton = document.getElementById('confirmPurchase');
+        confirmButton.setAttribute('data-cost', totalCost);
+        confirmButton.setAttribute('data-row', rowIndex);
+        confirmButton.setAttribute('data-quantity', quantity);
+        confirmButton.setAttribute('data-purchase-type', 'cardPurchase');
+        confirmButton.onclick = confirmPurchase; // Eseménykezelő beállítása
+      }
+    })
+    .withFailureHandler(function() {
+      document.getElementById('loadingSpinner').style.display = 'none';
+      document.getElementById('errorMessage').innerText = 'Hiba történt az egyenleg ellenőrzése közben.'; // Egyszerűsített hibaüzenet
+      document.getElementById('errorModal').style.display = 'block';
+    })
+    .getBalance();
+}
+
+function loadCardPurchaseTable() {
+
+  // 1) Egyenleg betöltése
+  google.script.run
+    .withSuccessHandler(function(balanceText) {
+      document.getElementById('cardPurchaseBalance').innerHTML = balanceText;
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error loading balance: ', error.message);
+    })
+    .getBalance();
+
+  // 2) Táblázat betöltése + mobilon kártyásítás
+  google.script.run
+    .withSuccessHandler(function(html) {
+      document.getElementById('cardPurchaseContent').innerHTML = html;
+
+      if (isCoarsePointerDevice()) {
+        convertTableToCards('cardPurchaseTable');
+      }
+    })
+    .withFailureHandler(function(error) {
+      alert('Hiba történt a kártyavásárlási adatok betöltése közben: ' + error.message);
+    })
+    .loadCardPurchaseList();
+}
+
+function closeNoSelectionModal() {
+  document.getElementById('noSelectionModal').style.display = 'none';
+}
+
+// Büntetés kiszabás oldal megnyitása
+function openGenerator() {
+    window.open('https://script.google.com/macros/s/AKfycbyVlU6_1EX-MIaN-qyBqn0OznnqM06NDramisCzphy3Ximctkgqvkyy70Hk4GOldt6_Sg/exec', '_top');
+}
+
+// Büntetés megjelenítés oldal megnyitása
+function openMegjelenites() {
+    window.open('https://script.google.com/macros/s/AKfycbyXxI1MoLtHWgfPyEQMZs8Dd0sG7r14Xsekas0vZKHd2trOaQYASG4u0-wbMkJGWAhXlQ/exec', '_top');
+}
+
+// Rabszolga GPS oldal megnyitása
+function openGps() {
+    window.open('https://script.google.com/macros/s/AKfycbwgwZRkfems6zN2woX-bEl3Q6KKHN9H_gUcJWM9SvGvDlh53j-2ZcpY7id40iL04kUoNA/exec', '_top');
+}
+
+function loadEladottContent() {
+  google.script.run
+.withSuccessHandler(function(html) {
+  document.getElementById('eladottContent').innerHTML = html;
+
+  if (isCoarsePointerDevice()) {
+    // Az eladott büntetések táblád ID-ja: eladottTable
+    convertReadOnlyTableToCards('eladottTable', { titleColIndex: 0 });
+  }
+})
+    .withFailureHandler(function(error) {
+      console.error('Error loading Eladott büntetések: ', error.message);
+    })
+    .loadEladottList();  // A Google Apps Script függvény meghívása az eladott tartalom lekéréséhez
+}
+
+function showContent(id) {
+  // Minden tartalom elrejtése
+  var contents = document.querySelectorAll('.content');
+  contents.forEach(function(content) {
+    content.classList.remove('active');
+  });
+
+  // Tabok láthatóságának kezelése
+  if (id === 'redemption' || id === 'priceList' || id === 'purchase' || id === 'eladott' || id === 'cardPurchase' || id === 'specialToolsPurchaseTab') {
+    // Csak a 'Főoldal' és az 'other-tabs' tabok látszódjanak
+    var mainTabs = document.querySelectorAll('#main-tabs .tab');
+    mainTabs.forEach(function(tab) {
+      if (tab.id === 'tab-main') {
+        tab.style.display = 'inline-block';
+      } else {
+        tab.style.display = 'none';
+      }
+    });
+    document.getElementById('other-tabs').style.display = 'block';
+    document.getElementById('rank-selection').style.display = 'none';
+    document.getElementById('summary-tabs').style.display = 'none';
+  } else if (id === 'summaries' || id === 'daily' || id === 'weekly' || id === 'monthly' || id === 'last7Days') {
+    // Csak a 'Főoldal' és az összesítő tabok látszódjanak, 'Összesítők' tabot elrejtjük
+    var mainTabs = document.querySelectorAll('#main-tabs .tab');
+    mainTabs.forEach(function(tab) {
+      if (tab.id === 'tab-main') {
+        tab.style.display = 'inline-block';
+      } else {
+        tab.style.display = 'none';
+      }
+    });
+    // Összesítők tabok megjelenítése
+    document.getElementById('summary-tabs').style.display = 'block';
+    document.getElementById('other-tabs').style.display = 'none';
+    document.getElementById('rank-selection').style.display = 'none';
+
+    // Ha az 'summaries' tabot kattintották, automatikusan aktiváljuk a 'last7Days' altabot
+    if (id === 'summaries') {
+      // Kiválasztjuk az 'last7Days' altabot
+      showContent('last7Days');
+      return; // Megállítjuk a függvényt, hogy ne fusson tovább
+    }
+  } else {
+    // Minden fő tab megjelenítése (alapértelmezett eset)
+    var mainTabs = document.querySelectorAll('#main-tabs .tab');
+    mainTabs.forEach(function(tab) {
+      tab.style.display = 'inline-block';
+    });
+    document.getElementById('other-tabs').style.display = 'none';
+    document.getElementById('summary-tabs').style.display = 'none';
+    document.getElementById('rank-selection').style.display = 'block';
+  }
+
+  // A kiválasztott tartalom megjelenítése (ha nem az 'summaries' tab)
+  if (id !== 'summaries') {
+    var selectedContent = document.getElementById(id);
+    if (selectedContent) {
+      selectedContent.classList.add('active');
+    }
+  }
+
+  // Tab specifikus tartalmak betöltése
+  switch (id) {
+    case 'priceList':
+      loadPriceListTable();
+      break;
+    case 'purchase':
+      loadPurchaseTable();
+      loadSpendableBalance();
+      break;
+    case 'eladott':
+      loadEladottContent();
+      break;
+    case 'cardPurchase':
+      loadCardPurchaseTable();  // Kártyavásárlási tartalom betöltése
+      break;
+    case 'specialToolsPurchaseTab':
+      loadSpecialToolsPurchaseTable();
+      break;
+    case 'daily':
+      loadSummaries('daily');
+      break;
+    case 'weekly':
+      loadSummaries('weekly');
+      break;
+    case 'monthly':
+      loadSummaries('monthly');
+      break;
+    case 'last7Days':
+      loadSummaries('last7Days');
+      break;
+    case 'redemption':
+      loadRedemptionInfo();
+      break;
+  }
+}
+
+var selectedProductPrices = {}; // Több termék árának nyomon követése
+
+function buyItem(rowIndex, spreadsheetRowIndex) {
+  // Ellenőrizzük, hogy van-e kiválasztott büntetés (nem nulla mennyiség)
+  var hasSelection = false;
+  for (var j = 1; j <= 4; j++) {
+    var quantityInput = document.getElementById('quantity-' + rowIndex + '-' + j);
+    if (quantityInput && parseInt(quantityInput.value) > 0) {
+      hasSelection = true;
+      break;
+    }
+  }
+
+  // Ha nincs kiválasztott büntetés, megjelenítjük a hibaüzenetet
+  if (!hasSelection) {
+    document.getElementById('noSelectionModal').style.display = 'block';
+    return; // Megállítjuk a folyamatot
+  }
+
+  // Ha van kiválasztott tétel, akkor folytatjuk a vásárlási folyamatot
+  var totalCostElement = document.getElementById('cost-' + rowIndex);
+  if (!totalCostElement) {
+    console.error('Nem található a költség elem a sorhoz: cost-' + rowIndex);
+    return;
+  }
+
+  var totalCost = parseInt(totalCostElement.innerText) || 0;
+
+  // Megjelenítjük a folyamatjelzőt
+  document.getElementById('loadingSpinner').style.display = 'block';
+
+  // Egyenleg ellenőrzés és vásárlási folyamat
+  google.script.run
+    .withSuccessHandler(function(balance) {
+      // Elrejtjük a folyamatjelzőt, és megjelenítjük a modal ablakot
+      document.getElementById('loadingSpinner').style.display = 'none';
+
+      if (balance < totalCost) {
+        // Ha nincs elég egyenleg, modal ablak figyelmeztet
+        document.getElementById('errorMessage').innerText = 'Nincs elegendő egyenleged a vásárláshoz.';
+        document.getElementById('errorModal').style.display = 'block';
+      } else {
+        // Ha van elég egyenleg, megjelenítjük a vásárlás megerősítésére szolgáló modalt
+        document.getElementById('purchaseMessage').innerText = `Biztosan folytatod a vásárlást? Az egyenlegedből ${totalCost} pont kerül levonásra.`;
+        document.getElementById('purchaseModal').style.display = 'block';
+
+        // Beállítjuk a megerősítő gomb attribútumait és eseménykezelőjét
+        var confirmButton = document.getElementById('confirmPurchase');
+        confirmButton.setAttribute('data-cost', totalCost);
+        confirmButton.setAttribute('data-row', rowIndex);
+        confirmButton.setAttribute('data-spreadsheet-row', spreadsheetRowIndex);
+        confirmButton.setAttribute('data-purchase-type', 'penaltyPurchase');
+        confirmButton.onclick = confirmPurchase;
+      }
+    })
+    .withFailureHandler(function(error) {
+      console.error('Hiba történt az egyenleg ellenőrzésekor: ', error);
+      // Elrejtjük a folyamatjelzőt, ha hiba történik
+      document.getElementById('loadingSpinner').style.display = 'none';
+    })
+    .getBalance(); // Lekérjük a Balance munkafüzet B3 cellájának értékét
+}
+
+function confirmPurchase() {
+  // Bezárjuk a vásárlás megerősítő modalt
+  document.getElementById('purchaseModal').style.display = 'none';
+
+  // Megjelenítjük a folyamatjelzőt
+  document.getElementById('loadingSpinner').style.display = 'block';
+
+  var totalCost = parseInt(document.getElementById('confirmPurchase').getAttribute('data-cost')) || 0;
+  var rowIndex = parseInt(document.getElementById('confirmPurchase').getAttribute('data-row'));
+  var spreadsheetRowIndex = parseInt(document.getElementById('confirmPurchase').getAttribute('data-spreadsheet-row'));
+  var purchaseType = document.getElementById('confirmPurchase').getAttribute('data-purchase-type');
+
+  // A vásárlás végrehajtása
+  if (purchaseType === 'penaltyPurchase') {
+    var quantities = {};
+    for (var j = 1; j <= 4; j++) {
+      var quantityInput = document.getElementById('quantity-' + rowIndex + '-' + j);
+      if (quantityInput) {
+        quantities[j] = parseInt(quantityInput.value) || 0;
+      }
+    }
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        document.getElementById('loadingSpinner').style.display = 'none';
+
+        var newBalance = result.newBalance;
+        var itemName = result.itemName;
+        var purchaseDetails = result.purchaseDetails;
+
+        // Egyenleg modal megjelenítése és callback beállítása
+        showModal(`Sikeres vásárlás, az egyenleged ${totalCost} ponttal csökkent! <br>Új egyenleged: ${newBalance} pont.`, false, function() {
+          document.getElementById('balance').innerHTML =
+  `Aktuális hónap egyenlege: <strong>${newBalance} pont</strong><br>` +
+  `Felhasználható egyenleged: <strong>${newBalance} pont</strong>`;
+          loadPurchaseTable();
+
+          // Naptárbejegyzés kérdése az egyenleg modal bezárása után
+          askCalendarEntry(itemName, purchaseDetails);
+        });
+      })
+      .withFailureHandler(function(error) {
+        console.error('Hiba történt a vásárlás végrehajtása során: ', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showModal('Hiba történt a vásárlás során.', false);
+      })
+      .deductBalanceAndProcessSale(totalCost, spreadsheetRowIndex, quantities);
+
+  } else if (purchaseType === 'specialToolPurchase') {
+    // Speciális eszköz vásárlása
+    var quantity = parseInt(document.getElementById('confirmPurchase').getAttribute('data-quantity')) || 0;
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        document.getElementById('loadingSpinner').style.display = 'none';
+
+        var newBalance = result.newBalance;
+        var itemName = result.itemName;
+        var purchaseDetails = result.purchaseDetails;
+
+        // Egyenleg modal megjelenítése és callback beállítása
+        showModal(`Sikeres vásárlás! Az egyenlegedből ${totalCost} pont került levonásra.<br>Új egyenleged: ${newBalance} pont.`, false, function() {
+          document.getElementById('specialToolsPurchaseBalance').innerText = `Felhasználható egyenleged: ${newBalance} pont`;
+          loadSpecialToolsPurchaseTable();
+
+          // Naptárbejegyzés kérdése az egyenleg modal bezárása után
+          askCalendarEntry(itemName, purchaseDetails);
+        });
+
+      })
+      .withFailureHandler(function(error) {
+        console.error('Hiba történt a vásárlás végrehajtása során: ', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showModal('Hiba történt a vásárlás során.', false);
+      })
+      .deductBalanceAndProcessSpecialToolPurchase(totalCost, rowIndex, quantity);
+
+  } else if (purchaseType === 'cardPurchase') {
+    // Kártya vásárlása
+    var quantity = parseInt(document.getElementById('confirmPurchase').getAttribute('data-quantity')) || 0;
+
+    google.script.run
+      .withSuccessHandler(function(result) {
+        document.getElementById('loadingSpinner').style.display = 'none';
+
+        var newBalance = result.newBalance;
+        var itemName = result.itemName;
+
+        // Egyenleg modal megjelenítése
+        showModal(`Sikeres vásárlás! Az egyenlegedből ${totalCost} pont került levonásra.<br>Új egyenleged: ${newBalance} pont.`, false);
+
+        // Frissítjük az egyenleget és a kártya vásárlási táblázatot
+        document.getElementById('cardPurchaseBalance').innerText = `Felhasználható egyenleged: ${newBalance} pont`;
+        loadCardPurchaseTable();
+
+        // Kártyavásárlásnál nem kérünk naptárbejegyzést
+
+      })
+      .withFailureHandler(function(error) {
+        console.error('Hiba történt a vásárlás végrehajtása során: ', error);
+        document.getElementById('loadingSpinner').style.display = 'none';
+        showModal('Hiba történt a vásárlás során.', false);
+      })
+      .deductBalanceAndProcessCardPurchase(totalCost, rowIndex, quantity);
+
+  } else {
+    document.getElementById('loadingSpinner').style.display = 'none';
+    showModal('Ismeretlen vásárlási típus.', false);
+  }
+}
+
+function closeModal() {
+  document.getElementById('purchaseModal').style.display = 'none';
+}
+
+function closeErrorModal() {
+  document.getElementById('errorModal').style.display = 'none';
+}
+
+function closeSuccessModal() {
+  document.getElementById('successModal').style.display = 'none';  // Modal bezárása
+  // Az egyenleg frissítése már a confirmPurchase függvényben megtörtént, így nem kell újratölteni az oldalt
+}
+
+function purchaseItem(rowId) {
+  var quantity = document.getElementById('quantity-' + rowId).value;
+  if (!quantity || quantity <= 0) {
+    alert('Adj meg egy mennyiséget!');
+    return;
+  }
+
+  var price = selectedProductPrices[rowId] || 0;
+  var totalCost = price * quantity;
+
+  // Itt hajthatjuk végre a vásárlási logikát, például pontok levonása vagy adatbázis frissítése
+  alert('Megvásároltad a terméket ' + totalCost + ' pontért.');
+}
+
+function selectPrice(price, productId) {
+  console.log('selectPrice called with Price:', price, 'ProductId:', productId);
+  selectedProductPrices[productId] = parseFloat(price) || 0; // Frissítjük a kiválasztott ár értékét
+}
+
+function loadSpendableBalance() {
+  google.script.run
+    .withSuccessHandler(function(balanceText) {
+      document.getElementById('balance').innerHTML = balanceText;
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error loading spendable balance: ', error.message);
+    })
+    .getBalance();
+}
+
+function calculateCost(rowIndex) {
+  console.log('calculateCost hívva. rowIndex:', rowIndex);  // Ellenőrizzük a rowIndex értéket
+
+  if (typeof rowIndex === 'undefined') {
+    console.error('A rowIndex undefined!');
+    return;  // Ha undefined, ne folytassuk a számítást
+  }
+
+  var totalCost = 0;
+
+  // Végigmegyünk az összes oszlopon, ahol mennyiség kiválasztható
+  for (var j = 1; j <= 4; j++) {
+    var quantityInput = document.getElementById('quantity-' + rowIndex + '-' + j);
+
+    if (quantityInput) {
+      var quantity = parseInt(quantityInput.value) || 0;
+      var price = parseInt(quantityInput.getAttribute('data-price')) || 0;
+      totalCost += quantity * price;
+    }
+  }
+
+  var costElement = document.getElementById('cost-' + rowIndex);
+  if (costElement) {
+    costElement.innerText = totalCost + ' pont';
+  } else {
+    console.error('Nem található a költség elem a sorhoz: cost-' + rowIndex);
+  }
+}
+
+// Esemény Delegáció Frissítése
+document.body.addEventListener('click', function(event) {
+  if (event.target.classList.contains('price-radio')) {
+    var price = event.target.value;
+    var productId = event.target.getAttribute('data-product-id');
+    selectPrice(price, productId);
+  }
+});
+
+function isCoarsePointerDevice() {
+  return window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+}
+
+/**
+ * A #purchaseTable táblából mobil kártya-nézetet épít.
+ * Fontos: az eredeti inputok/gombok DOM elemeit ÁTMOVATJA,
+ * így az ID-k és az eseménykezelők megmaradnak.
+ */
+
+
+function installInputFocusUnzoomHandlers() {
+  // Csak mobilon érdemes
+  if (!isCoarsePointerDevice()) return;
+
+  document.addEventListener('focusin', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('quantity-input')) {
+      // Semmi extra: a font-size miatt általában nem zoomol már
+    }
+  });
+
+  document.addEventListener('focusout', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('quantity-input')) {
+      // Sok böngészőn nincs "unzoom" API, de ez segít visszarendezni a képet
+      window.scrollTo({ top: window.scrollY, left: 0, behavior: 'smooth' });
+    }
+  });
+}
+
+// Büntetés vásárlása táblázat betöltése
+function loadPurchaseTable() {
+  google.script.run
+    .withSuccessHandler(function (html) {
+      var purchaseContent = document.getElementById('purchaseContent');
+      if (!purchaseContent) {
+        console.error("purchaseContent elem nem található.");
+        return;
+      }
+
+      purchaseContent.innerHTML = html;
+
+      // input mezők -> költség újraszámolás
+      var quantityInputs = document.querySelectorAll('#purchaseContent .quantity-input');
+      quantityInputs.forEach(function (input) {
+        var rowIndex = input.dataset.rowIndex;
+        input.addEventListener('input', function () {
+          calculateCost(rowIndex);
+        });
+      });
+
+      // Mobil (érintős) eszközön: táblázat -> kártya nézet
+      if (isCoarsePointerDevice()) {
+        // Ha a generikus kártyásítót használod:
+        convertTableToCards('purchaseTable');
+
+        // opcionális: fókusz kezelés
+        if (typeof installInputFocusUnzoomHandlers === 'function') {
+          installInputFocusUnzoomHandlers();
+        }
+      }
+    })
+    .withFailureHandler(function (error) {
+      console.error('Error loading purchase table: ', error && error.message ? error.message : error);
+    })
+    .loadPurchaseList(); // szerver oldali (Kód.gs) függvény
+}
+
+// Vásárlás táblázat betöltése
+function loadCardPurchaseTable() {
+
+  // 1) Egyenleg betöltése
+  google.script.run
+    .withSuccessHandler(function(balanceText) {
+      document.getElementById('cardPurchaseBalance').innerHTML = balanceText;
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error loading balance: ', error.message);
+    })
+    .getBalance();
+
+  // 2) Táblázat betöltése + mobilon kártyásítás
+  google.script.run
+    .withSuccessHandler(function(html) {
+      document.getElementById('cardPurchaseContent').innerHTML = html;
+
+      if (isCoarsePointerDevice()) {
+        convertTableToCards('cardPurchaseTable');
+      }
+    })
+    .withFailureHandler(function(error) {
+      alert('Hiba történt a kártyavásárlási adatok betöltése közben: ' + error.message);
+    })
+    .loadCardPurchaseList();
+}
+
+function loadRedemptionInfo() {
+  google.script.run
+    .withSuccessHandler(function(data) {
+      document.getElementById('monthlyPoints').innerText = data.monthlyPoints + ' pont';
+      document.getElementById('usedBalance').innerText = data.usedBalance + ' pont';
+      document.getElementById('availableBalance').innerText = data.availableBalance + ' pont';
+      document.getElementById('redemptionInfo').innerText = data.redemptionInfo;
+
+      // Elveszett pontok számának kiírása
+      document.getElementById('lostPoints').innerText = data.lostPoints + ' pont';
+
+      // Ha 0 az elveszett pont, akkor elrejtjük a gombot, különben mutatjuk
+      var lostPointsButton = document.getElementById('lostPointsButton');
+      if (data.lostPoints > 0) {
+        lostPointsButton.style.display = 'inline-block'; 
+      } else {
+        lostPointsButton.style.display = 'none';
+      }
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error in loadRedemptionInfo:', error.message);
+    })
+    .loadRedemptionData(); // szerveroldali függvény
+}
+
+function showModal(message, autoCloseTime = 4000, callback = null) {
+  var modal = document.getElementById('successModal');
+  var modalMessage = document.getElementById('modalMessage');
+  
+  if (modalMessage && modal) {
+    // Itt a div-hez hozzáadtuk a font-size: 2.5rem-et (ezt írd át amekkorára akarod)
+    modalMessage.innerHTML = `
+      <div style="margin-bottom: 25px; line-height: 1.2; font-size: 2.5rem; font-weight: 800;">
+        ${message}
+      </div>
+      <button id="modalOkButton" class="modal-ok-button">OK</button>
+    `;
+
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+
+    var autoCloseTimer;
+
+    var closeAll = function() {
+      modal.style.display = 'none';
+      if (autoCloseTimer) clearTimeout(autoCloseTimer);
+      if (callback && typeof callback === 'function') {
+        callback();
+      }
+    };
+
+    var okBtn = document.getElementById('modalOkButton');
+    if (okBtn) {
+      okBtn.onclick = closeAll;
+    }
+
+    if (autoCloseTime && autoCloseTime > 0) {
+      autoCloseTimer = setTimeout(closeAll, autoCloseTime);
+    }
+  }
+}
+
+function addPointsWithDetails(points, punisher, punishmentCategory, disobedienceType) {
+    // Folyamatjelző megjelenítése azonnal
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    // Késleltetjük a Google Apps Script hívást, hogy a folyamatjelző biztosan megjelenjen előtte
+    setTimeout(function() {
+      google.script.run
+        .withSuccessHandler(function() {
+          // Pontgyűjtés után egyenleg lekérése
+          google.script.run
+            .withSuccessHandler(function(spendableBalance) {
+              // Folyamatjelző elrejtése és az új egyenleg megjelenítése a modal ablakban
+              document.getElementById('loadingSpinner').style.display = 'none';
+              showModal('A büntetőpont jóváírása megtörtént!<br>Felhasználható egyenleged: ' + spendableBalance + ' pont.', false);
+            })
+            .withFailureHandler(function(error) {
+              document.getElementById('loadingSpinner').style.display = 'none';
+              console.error('Hiba az egyenleg lekérésekor: ', error.message);
+            })
+            .getBalanceOnly();
+
+          // Főoldali pontok frissítése
+          loadInitialData();
+        })
+        .withFailureHandler(function(error) {
+          document.getElementById('loadingSpinner').style.display = 'none';
+          console.error('Error in addPointsWithDetails: ', error.message);
+        })
+        .addPoints(points, punisher, punishmentCategory, disobedienceType);
+    }, 100); // 100 ms késleltetés
+}
+
+function loadPriceListTable() {
+  google.script.run
+    .withSuccessHandler(function(html) {
+      var priceListTable = document.getElementById('priceListTable');
+      if (priceListTable) {
+        priceListTable.innerHTML = html;
+      } else {
+        console.error('priceListTable element not found.');
+      }
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error loading price list: ', error.message);
+    })
+    .loadPriceList();
+}
+
+ function loadPointsTable() {
+  google.script.run
+    .withSuccessHandler(function(html) {
+      var pointsTable = document.getElementById('pointsTable');
+      if (pointsTable) {
+        pointsTable.innerHTML = html;
+        document.getElementById('loader-main').style.display = 'none';
+      } else {
+        console.error('pointsTable element not found.');
+      }
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error in loadPointsTable: ', error.message);
+      document.getElementById('loader-main').style.display = 'none';
+    })
+    .loadPointsTable();
+}
+
+  function loadSummaries(tabId) {
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (tabId === 'daily') {
+        document.getElementById('dailySummary').innerHTML = data.daily;
+      } else if (tabId === 'weekly') {
+        document.getElementById('weeklySummary').innerHTML = data.weekly;
+      } else if (tabId === 'monthly') {
+        document.getElementById('monthlySummary').innerHTML = data.monthly;
+      }
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error in loadSummaries: ', error.message);
+    })
+    .loadAllSummaries();
+}
+
+  function loadInitialData() {
+    document.getElementById('loader-main').style.display = 'block';
+    google.script.run
+      .withSuccessHandler(function(data) {
+        document.getElementById('totalPoints').innerText = data.totalPoints;
+        loadPointsTable();  // Frissítjük a pontokat tartalmazó táblázatot
+      })
+      .withFailureHandler(function(error) {
+        console.error('Error in loadInitialData: ', error.message);
+        document.getElementById('loader-main').style.display = 'none';
+      })
+      .loadPoints();
+}
+
+function loadLast7DaysEvents() {
+  google.script.run
+    .withSuccessHandler(function(html) {
+      document.getElementById('last7DaysTable').innerHTML = html;
+    })
+    .withFailureHandler(function(error) {
+      console.error('Error in loadLast7DaysEvents: ', error.message);
+    })
+    .loadLast7DaysEvents();
+}
+
+// Globális változó a jelenlegi megjelenített popup tárolásához
+var currentHelpPopup = null;
+
+function showHelpText(event, text) {
+  // Megállítjuk az esemény továbbterjedését, hogy ne záródjon be rögtön a popup
+  event.stopPropagation();
+
+  // Ha már van megjelenő popup, eltávolítjuk
+  if (currentHelpPopup) {
+    document.body.removeChild(currentHelpPopup);
+    currentHelpPopup = null;
+  }
+
+  // Létrehozunk egy div elemet, amely a súgó szöveget tartalmazza
+  var helpDiv = document.createElement('div');
+  helpDiv.className = 'help-text-popup';
+  helpDiv.innerText = text;
+
+  // Stílusok a popup ablakhoz
+  helpDiv.style.position = 'absolute';
+  helpDiv.style.backgroundColor = '#fff';
+  helpDiv.style.border = '1px solid #ccc';
+  helpDiv.style.padding = '10px';
+  helpDiv.style.borderRadius = '5px';
+  helpDiv.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
+  helpDiv.style.zIndex = '1000';
+
+  // Az esemény pozíciójához igazítjuk
+  helpDiv.style.left = event.pageX + 'px';
+  helpDiv.style.top = event.pageY + 'px';
+
+  // Hozzáadjuk a popupot a dokumentumhoz
+  document.body.appendChild(helpDiv);
+  currentHelpPopup = helpDiv;
+
+  // Eseményfigyelő hozzáadása az oldalhoz, hogy kattintásra eltávolítsuk a popupot
+  document.addEventListener('click', hideHelpText);
+}
+
+// A funkció, amely eltávolítja a popupot
+function hideHelpText(event) {
+  // Csak akkor távolítjuk el a popupot, ha van jelenleg megjelenítve
+  if (currentHelpPopup) {
+    document.body.removeChild(currentHelpPopup);
+    currentHelpPopup = null;
+    // Eltávolítjuk az eseményfigyelőt, hogy ne maradjon aktív
+    document.removeEventListener('click', hideHelpText);
+  }
+}
+
+/**
+ * Read-only táblák (nincs input/gomb) mobilos kártyásítása.
+ * Példa: Eladott büntetések.
+ */
+/**
+ * Read-only táblák (nincs input/gomb) mobilos kártyásítása.
+ * Példa: Eladott büntetések.
+ * JAVÍTÁS: csak azokat a sorokat alakítja kártyává, ahol tényleges eladás történt (szám > 0).
+ */
+function convertReadOnlyTableToCards(tableId, options) {
+  options = options || {};
+  var titleColIndex = typeof options.titleColIndex === 'number' ? options.titleColIndex : 0;
+
+  var table = document.getElementById(tableId);
+  if (!table) return;
+
+  // Ne építsük meg kétszer
+  if (document.getElementById(tableId + '-cards')) return;
+
+  var thead = table.querySelector('thead');
+  var tbody = table.querySelector('tbody');
+  if (!thead || !tbody) return;
+
+  var headers = Array.from(thead.querySelectorAll('th')).map(function (th) {
+    return (th.innerText || '').trim();
+  });
+
+  function extractNumber(text) {
+    var t = (text || '').toString().replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!t) return 0;
+
+    if (t === '-' || t === '—' || t === 'n/a' || t === 'na') return 0;
+
+    // első szám (pl. "10 pont x 3" -> 10)
+    var m = t.match(/-?\d[\d\s]*/);
+    if (!m) return 0;
+
+    var n = parseInt(m[0].replace(/\s+/g, ''), 10);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function rowHasSale(tds, headersArr, titleIdx) {
+    // Van-e a sorban bárhol tényleges eladás (szám > 0) pont/darab jellegű mezőben?
+    for (var i = 0; i < tds.length; i++) {
+      if (i === titleIdx) continue;
+
+      var label = (headersArr[i] || '').toLowerCase();
+      var valText = (tds[i].innerText || '').trim();
+
+      var looksLikeSaleColumn =
+        /elad|eladás|db|darab|menny|qty|count|pont|össz|sum|érték|value/.test(label) ||
+        /pont/i.test(valText);
+
+      if (!looksLikeSaleColumn) continue;
+
+      var n = extractNumber(valText);
+      if (n > 0) return true;
+    }
+    return false;
+  }
+
+  function shouldShowField(labelText, valueText) {
+    var l = (labelText || '').toLowerCase();
+    var v = (valueText || '').toString().trim();
+
+    if (!v) return false;
+
+    var vLower = v.toLowerCase();
+    if (vLower === '-' || vLower === '—' || vLower === 'n/a' || vLower === 'na') return false;
+
+    var isDate = /dátum|date/.test(l);
+    if (isDate) return true;
+
+    var isTotal = /össz|total|sum/.test(l);
+    if (isTotal) return true;
+
+    // Az "időtartam" / opció oszlopokat csak akkor mutassuk, ha van benne tényleges szám (pl. pont)
+    var isDurationLike = /óra|fürdés|munkanap|napra|időtartam/.test(l);
+    var isPointsLike = /pont/.test(l) || /pont/.test(vLower);
+
+    if (isDurationLike || isPointsLike) {
+      return extractNumber(v) > 0;
+    }
+
+    // Egyéb oszlopok: ha nem üres, megjelenhet
+    return true;
+  }
+
+  var container = document.createElement('div');
+  container.id = tableId + '-cards';
+  container.className = 'purchase-cards';
+
+  Array.from(tbody.querySelectorAll('tr')).forEach(function (tr) {
+    var tds = Array.from(tr.querySelectorAll('td'));
+    if (!tds.length) return;
+
+    // Csak tényleges eladásos sor maradjon
+    if (!rowHasSale(tds, headers, titleColIndex)) return;
+
+    var card = document.createElement('div');
+    card.className = 'purchase-card';
+
+    var titleText = (tds[titleColIndex] && tds[titleColIndex].innerText)
+      ? tds[titleColIndex].innerText.trim()
+      : '';
+
+    var title = document.createElement('div');
+    title.className = 'purchase-card__title';
+    title.textContent = titleText;
+    card.appendChild(title);
+
+    for (var i = 0; i < tds.length; i++) {
+      if (i === titleColIndex) continue;
+
+      var labelText = headers[i] || ('Oszlop ' + (i + 1));
+      var valueText = (tds[i].innerText || '').trim();
+
+      // --- EZ A LÉNYEG: üres / 0-s / nem kiválasztott időtartam ne jelenjen meg ---
+      if (!shouldShowField(labelText, valueText)) continue;
+
+      var row = document.createElement('div');
+      row.className = 'purchase-row';
+
+      var labelEl = document.createElement('div');
+      labelEl.className = 'purchase-row__label';
+      labelEl.textContent = labelText;
+
+      var valueEl = document.createElement('div');
+      valueEl.className = 'purchase-row__value';
+
+      var isPoints = /pont/i.test(labelText) || /pont/i.test(valueText);
+      if (isPoints) {
+        var price = document.createElement('div');
+        price.className = 'purchase-row__price';
+        price.textContent = valueText;
+        valueEl.appendChild(price);
+      } else {
+        valueEl.textContent = valueText;
+      }
+
+      row.appendChild(labelEl);
+      row.appendChild(valueEl);
+      card.appendChild(row);
+    }
+
+    container.appendChild(card);
+  });
+
+  table.parentNode.insertBefore(container, table);
+  table.remove();
+}
+
+
+
+function convertTableToCards(tableId) {
+  var table = document.getElementById(tableId);
+  if (!table) return;
+
+  if (document.getElementById(tableId + '-cards')) return;
+
+  var thead = table.querySelector('thead');
+  var tbody = table.querySelector('tbody');
+  if (!thead || !tbody) return;
+
+  var headers = Array.from(thead.querySelectorAll('th')).map(th =>
+    (th.innerText || '').trim()
+  );
+
+  var container = document.createElement('div');
+  container.id = tableId + '-cards';
+  container.className = 'purchase-cards';
+
+Array.from(tbody.querySelectorAll('tr')).forEach(function (tr) {
+  var tds = Array.from(tr.querySelectorAll('td'));
+  if (!tds.length) return;
+
+  var card = document.createElement('div');
+  card.className = 'purchase-card';
+
+    /* TÉTEL NEVE */
+    var title = document.createElement('div');
+    title.className = 'purchase-card__title';
+    title.textContent = (tds[0].innerText || '').trim();
+    card.appendChild(title);
+
+    /* OPCIÓK */
+    for (var i = 1; i < tds.length - 2; i++) {
+      var row = document.createElement('div');
+      row.className = 'purchase-row';
+
+      var label = document.createElement('div');
+      label.className = 'purchase-row__label';
+      label.textContent = headers[i] || '';
+      row.appendChild(label);
+
+      var value = document.createElement('div');
+      value.className = 'purchase-row__value';
+
+      var input = tds[i].querySelector('input');
+      var text = (tds[i].innerText || '').trim();
+
+      if (input) value.appendChild(input);
+      if (text) {
+        var span = document.createElement('div');
+        span.className = 'purchase-row__price';
+        span.textContent = text;
+        value.prepend(span);
+      }
+
+      row.appendChild(value);
+      card.appendChild(row);
+    }
+
+    /* ÖSSZKÖLTSÉG */
+    var total = document.createElement('div');
+    total.className = 'purchase-total';
+
+    var totalLabel = document.createElement('div');
+    totalLabel.className = 'purchase-total__label';
+    totalLabel.textContent = headers[headers.length - 2] || 'Összköltség';
+
+    var totalValue = document.createElement('div');
+    totalValue.className = 'purchase-total__value';
+    totalValue.id = tds[tds.length - 2].id;
+    totalValue.textContent = tds[tds.length - 2].innerText;
+
+    total.appendChild(totalLabel);
+    total.appendChild(totalValue);
+    card.appendChild(total);
+
+    /* VÁSÁRLÁS GOMB */
+    var actions = document.createElement('div');
+    actions.className = 'purchase-actions';
+
+    var btn = tds[tds.length - 1].querySelector('button');
+    if (btn) actions.appendChild(btn);
+
+    card.appendChild(actions);
+
+    container.appendChild(card);
+  });
+
+  table.parentNode.insertBefore(container, table);
+  table.remove();
+}
+
+// Az ikonokhoz a kattintás eseményének lekezelése
+document.querySelectorAll('.help-icon').forEach(function(icon) {
+  icon.addEventListener('click', function(event) {
+    // Itt a szöveget a megfelelő helyről beállíthatod
+    var helpText = icon.getAttribute('data-help-text');
+    showHelpText(event, helpText);
+  });
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Alapvető adatok betöltése
+  try {
+    loadInitialData(); // Főoldal betöltése
+    loadSummaries('daily'); // Napi összesítők betöltése
+    loadSummaries('weekly'); // Heti összesítők betöltése
+    loadSummaries('monthly'); // Havi összesítők betöltése
+    loadLast7DaysEvents(); // Elmúlt 7 nap eseményeinek betöltése
+    loadRedemptionInfo(); // Pontbeváltás betöltése
+    loadPriceListTable(); // Az árlista adatai betöltése (de nem jelenítjük meg)
+  } catch (error) {
+    console.error('Hiba történt az adatok betöltése közben:', error);
+  }
+
+document.getElementById('kisorsolasNoButton').addEventListener('click', function() {
+  // Ha havi jelölés van folyamatban
+  if (typeof window.monthlyKisorsolvaMonth !== 'undefined' && typeof window.monthlyKisorsolvaType !== 'undefined' && window.monthlyKisorsolvaCheckbox) {
+    window.monthlyKisorsolvaCheckbox.checked = false;
+    delete window.monthlyKisorsolvaMonth;
+    delete window.monthlyKisorsolvaType;
+    delete window.monthlyKisorsolvaCheckbox;
+  }
+
+  // Ha heti jelölés van folyamatban
+  if (kisorsolasWeekNumber !== null && kisorsolasCheckbox !== null) {
+    kisorsolasCheckbox.checked = false;
+    kisorsolasWeekNumber = null;
+    kisorsolasCheckbox = null;
+  }
+
+  closeKisorsolasModal();
+});
+
+  // Event delegation a radio gombokhoz (opcionális)
+  document.body.addEventListener('click', function (event) {
+    if (event.target.classList.contains('price-radio')) {
+      var price = event.target.value;
+      var productId = event.target.getAttribute('data-product-id');
+      try {
+        selectPrice(price, productId);
+      } catch (error) {
+        console.error('Hiba a price-radio esemény feldolgozása közben:', error);
+      }
+    }
+  });
+});
+
+
+</script>
