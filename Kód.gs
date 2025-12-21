@@ -3,7 +3,7 @@ const APP_NAME       = 'Pontgyűjtő';
 const APP_SHORT_NAME = 'Pontgyűjtő';
 const THEME_COLOR    = '#3b82f6';
 const ICON_URL       = 'https://res.cloudinary.com/dml7b81n6/image/upload/v1765280307/Pontgyujto_ikon_upsfe1.png';
-const POINT_EXPIRATION_DAYS = 1;
+const POINT_EXPIRATION_DAYS = 90;
 
 function doGet(e) {
   e = e || {};
