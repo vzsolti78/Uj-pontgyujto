@@ -27,51 +27,116 @@ function handleMonthlyKisorsolvaClick(month, type, checkbox) {
   }
 }
 
-document.getElementById('kisorsolasYesButton').addEventListener('click', function() {
-  // Ha havi jelölés áll fenn
-  if (typeof window.monthlyKisorsolvaMonth !== 'undefined' && typeof window.monthlyKisorsolvaType !== 'undefined') {
-    // Havi kisorsolás logika
-    google.script.run
-      .withSuccessHandler(function() {
-        if (window.monthlyKisorsolvaCheckbox) {
-          window.monthlyKisorsolvaCheckbox.disabled = true;
-        }
+document.addEventListener('DOMContentLoaded', function() {
+  var kisorsolasYesButton = document.getElementById('kisorsolasYesButton');
+  if (kisorsolasYesButton) {
+    kisorsolasYesButton.addEventListener('click', function() {
+      // Ha havi jelölés áll fenn
+      if (typeof window.monthlyKisorsolvaMonth !== 'undefined' && typeof window.monthlyKisorsolvaType !== 'undefined') {
+        // Havi kisorsolás logika
+        google.script.run
+          .withSuccessHandler(function() {
+            if (window.monthlyKisorsolvaCheckbox) {
+              window.monthlyKisorsolvaCheckbox.disabled = true;
+            }
+            closeKisorsolasModal();
+            delete window.monthlyKisorsolvaMonth;
+            delete window.monthlyKisorsolvaType;
+            delete window.monthlyKisorsolvaCheckbox;
+          })
+          .withFailureHandler(function(error) {
+            alert('Hiba történt a jelölés mentésekor: ' + error.message);
+            if (window.monthlyKisorsolvaCheckbox) {
+              window.monthlyKisorsolvaCheckbox.checked = false;
+            }
+            closeKisorsolasModal();
+            delete window.monthlyKisorsolvaMonth;
+            delete window.monthlyKisorsolvaType;
+            delete window.monthlyKisorsolvaCheckbox;
+          })
+          .setMonthlyKisorsolva(window.monthlyKisorsolvaMonth, window.monthlyKisorsolvaType);
+      } else if (kisorsolasWeekNumber !== null && kisorsolasCheckbox !== null) {
+        // Heti kisorsolás logika
+        google.script.run
+          .withSuccessHandler(function() {
+            if (kisorsolasCheckbox) {
+              kisorsolasCheckbox.disabled = true;
+            }
+            closeKisorsolasModal();
+          })
+          .withFailureHandler(function(error) {
+            alert('Hiba történt a jelölés mentésekor: ' + error.message);
+            if (kisorsolasCheckbox) {
+              kisorsolasCheckbox.checked = false;
+            }
+            closeKisorsolasModal();
+          })
+          .setKisorsolva(kisorsolasWeekNumber);
+      } else {
+        // Sem havi, sem heti adatok nincsenek, egyszerűen zárjuk a modalt
         closeKisorsolasModal();
-        delete window.monthlyKisorsolvaMonth;
-        delete window.monthlyKisorsolvaType;
-        delete window.monthlyKisorsolvaCheckbox;
-      })
-      .withFailureHandler(function(error) {
-        alert('Hiba történt a jelölés mentésekor: ' + error.message);
-        if (window.monthlyKisorsolvaCheckbox) {
-          window.monthlyKisorsolvaCheckbox.checked = false;
-        }
-        closeKisorsolasModal();
-        delete window.monthlyKisorsolvaMonth;
-        delete window.monthlyKisorsolvaType;
-        delete window.monthlyKisorsolvaCheckbox;
-      })
-      .setMonthlyKisorsolva(window.monthlyKisorsolvaMonth, window.monthlyKisorsolvaType);
-  } else if (kisorsolasWeekNumber !== null && kisorsolasCheckbox !== null) {
-    // Heti kisorsolás logika
-    google.script.run
-      .withSuccessHandler(function() {
-        if (kisorsolasCheckbox) {
-          kisorsolasCheckbox.disabled = true;
-        }
-        closeKisorsolasModal();
-      })
-      .withFailureHandler(function(error) {
-        alert('Hiba történt a jelölés mentésekor: ' + error.message);
-        if (kisorsolasCheckbox) {
-          kisorsolasCheckbox.checked = false;
-        }
-        closeKisorsolasModal();
-      })
-      .setKisorsolva(kisorsolasWeekNumber);
-  } else {
-    // Sem havi, sem heti adatok nincsenek, egyszerűen zárjuk a modalt
-    closeKisorsolasModal();
+            }
+    });
+  }
+
+  // --- Javított IGEN gomb eseménykezelő ---
+  var yesBtn = document.getElementById('lostPointsYesButton');
+  if (yesBtn) {
+    var noBtn = document.getElementById('lostPointsNoButton'); // Biztosítjuk, hogy a noBtn is elérhető
+    yesBtn.addEventListener('click', function() {
+      // 1) Rögtön kattintáskor halványítjuk és kikapcsoljuk a két gombot,
+      //    hogy látható legyen a kattintás megtörtént.
+      yesBtn.style.opacity = "0.5";
+      noBtn.style.opacity = "0.5";
+      yesBtn.style.pointerEvents = "none";
+      noBtn.style.pointerEvents = "none";
+
+      // 2) Elindítjuk a szerveroldali hívást
+      google.script.run
+        .withSuccessHandler(function(redeemedAmount) {
+          // Bezárjuk a modalt
+          document.getElementById('lostPointsModal').style.display = 'none';
+          // Mutatunk egy modal- vagy showModal() üzenetet
+          showModal(
+            "Az elveszett pontok hozzáadódtak a pontjaidhoz. " +
+            "Az így gyűjtött pontokat a következő hónap 15. napjáig tudod felhasználni.",
+            false,
+            function() {
+              // Modal OK gomb után újratöltjük a redemption adatokat
+              loadRedemptionInfo();
+            }
+          );
+        })
+        .withFailureHandler(function(error) {
+          console.error("Hiba történt az elveszett pontok beváltásakor:", error.message);
+          // Ha hiba történt, visszaállíthatjuk a gombokat, hogy újra lehessen próbálni:
+          yesBtn.style.opacity = "";
+          noBtn.style.opacity = "";
+          yesBtn.style.pointerEvents = "";
+          noBtn.style.pointerEvents = "";
+
+          // A modalt is bezárhatjuk, vagy hagyhatjuk nyitva:
+          document.getElementById('lostPointsModal').style.display = 'none';
+        })
+        .redeemLostPoints(); // a Kód.gs-ben létrehozott függvény
+    });
+  }
+
+  // --- Javított NEM gomb eseménykezelő ---
+  var noBtn = document.getElementById('lostPointsNoButton');
+  if (noBtn) {
+    var yesButtonRef = document.getElementById('lostPointsYesButton'); // Biztosítjuk, hogy a yesBtn is elérhető
+    noBtn.addEventListener('click', function() {
+      // 1) Rögtön kattintáskor halványítjuk és kikapcsoljuk a két gombot,
+      //    hogy látható legyen a kattintás megtörtént.
+      noBtn.style.opacity = "0.5";
+      yesButtonRef.style.opacity = "0.5";
+      noBtn.style.pointerEvents = "none";
+      yesButtonRef.style.pointerEvents = "none";
+
+      // 2) Bezárjuk a modalt
+      document.getElementById('lostPointsModal').style.display = 'none';
+    });
   }
 });
 
@@ -89,66 +154,6 @@ function openLostPointsModal() {
 
   // Megnyitjuk a modalt
   document.getElementById('lostPointsModal').style.display = 'block';
-}
-
-// --- Javított IGEN gomb eseménykezelő ---
-var yesBtn = document.getElementById('lostPointsYesButton');
-if (yesBtn) {
-  var noBtn = document.getElementById('lostPointsNoButton'); // Biztosítjuk, hogy a noBtn is elérhető
-  yesBtn.addEventListener('click', function() {
-    // 1) Rögtön kattintáskor halványítjuk és kikapcsoljuk a két gombot,
-    //    hogy látható legyen a kattintás megtörtént.
-    yesBtn.style.opacity = "0.5";
-    noBtn.style.opacity = "0.5";
-    yesBtn.style.pointerEvents = "none";
-    noBtn.style.pointerEvents = "none";
-
-    // 2) Elindítjuk a szerveroldali hívást
-    google.script.run
-      .withSuccessHandler(function(redeemedAmount) {
-        // Bezárjuk a modalt
-        document.getElementById('lostPointsModal').style.display = 'none';
-        // Mutatunk egy modal- vagy showModal() üzenetet
-        showModal(
-          "Az elveszett pontok hozzáadódtak a pontjaidhoz. " +
-          "Az így gyűjtött pontokat a következő hónap 15. napjáig tudod felhasználni.",
-          false,
-          function() {
-            // Modal OK gomb után újratöltjük a redemption adatokat
-            loadRedemptionInfo();
-          }
-        );
-      })
-      .withFailureHandler(function(error) {
-        console.error("Hiba történt az elveszett pontok beváltásakor:", error.message);
-        // Ha hiba történt, visszaállíthatjuk a gombokat, hogy újra lehessen próbálni:
-        yesBtn.style.opacity = "";
-        noBtn.style.opacity = "";
-        yesBtn.style.pointerEvents = "";
-        noBtn.style.pointerEvents = "";
-
-        // A modalt is bezárhatjuk, vagy hagyhatjuk nyitva:
-        document.getElementById('lostPointsModal').style.display = 'none';
-      })
-      .redeemLostPoints(); // a Kód.gs-ben létrehozott függvény
-  });
-}
-
-// --- Javított NEM gomb eseménykezelő ---
-var noBtn = document.getElementById('lostPointsNoButton');
-if (noBtn) {
-  var yesBtn = document.getElementById('lostPointsYesButton'); // Biztosítjuk, hogy a yesBtn is elérhető
-  noBtn.addEventListener('click', function() {
-    // 1) Rögtön kattintáskor halványítjuk és kikapcsoljuk a két gombot,
-    //    hogy látható legyen a kattintás megtörtént.
-    noBtn.style.opacity = "0.5";
-    yesBtn.style.opacity = "0.5";
-    noBtn.style.pointerEvents = "none";
-    yesBtn.style.pointerEvents = "none";
-
-    // 2) Bezárjuk a modalt
-    document.getElementById('lostPointsModal').style.display = 'none';
-  });
 }
 
 function closeKisorsolasModal() {
