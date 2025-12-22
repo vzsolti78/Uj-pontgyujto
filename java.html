@@ -435,7 +435,7 @@ function showContent(id) {
         tab.style.display = 'none';
       }
     });
-    document.getElementById('other-tabs').style.display = 'block';
+    document.getElementById('other-tabs').style.display = 'flex';
     document.getElementById('rank-selection').style.display = 'none';
     document.getElementById('summary-tabs').style.display = 'none';
   } else if (id === 'summaries' || id === 'daily' || id === 'weekly' || id === 'monthly' || id === 'last7Days') {
@@ -449,7 +449,7 @@ function showContent(id) {
       }
     });
     // Összesítők tabok megjelenítése
-    document.getElementById('summary-tabs').style.display = 'block';
+    document.getElementById('summary-tabs').style.display = 'flex';
     document.getElementById('other-tabs').style.display = 'none';
     document.getElementById('rank-selection').style.display = 'none';
 
