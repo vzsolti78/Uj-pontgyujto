@@ -3,7 +3,24 @@ const APP_NAME       = 'Pontgyűjtő';
 const APP_SHORT_NAME = 'Pontgyűjtő';
 const THEME_COLOR    = '#3b82f6';
 const ICON_URL       = 'https://res.cloudinary.com/dml7b81n6/image/upload/v1765280307/Pontgyujto_ikon_upsfe1.png';
-const POINT_EXPIRATION_DAYS = 1;
+const POINT_EXPIRATION_DAYS = 90;
+const PROPS = PropertiesService.getScriptProperties();
+const SPREADSHEET_ID_MAIN  = PROPS.getProperty('SPREADSHEET_ID_MAIN');
+const SPREADSHEET_ID_ADMIN = PROPS.getProperty('SPREADSHEET_ID_ADMIN');
+
+function getMainSpreadsheet_() {
+  if (!SPREADSHEET_ID_MAIN) {
+    throw new Error('SPREADSHEET_ID_MAIN nincs beállítva.');
+  }
+  return SpreadsheetApp.openById(SPREADSHEET_ID_MAIN);
+}
+
+function getAdminSpreadsheet_() {
+  if (!SPREADSHEET_ID_ADMIN) {
+    throw new Error('SPREADSHEET_ID_ADMIN nincs beállítva.');
+  }
+  return SpreadsheetApp.openById(SPREADSHEET_ID_ADMIN);
+}
 
 function doGet(e) {
   e = e || {};
@@ -29,9 +46,11 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // Fájl tartalom lekérése, ha fileId paraméter van
+  // Fájl tartalom lekérésének tiltása biztonsági okokból
   if (params.fileId) {
-    return getFileContent(params.fileId);
+      return ContentService
+      .createTextOutput('A fájltartalom lekérése le van tiltva.')
+      .setMimeType(ContentService.MimeType.TEXT);
   }
 
   var page = params.page || 'index';
@@ -46,19 +65,8 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-function getFileContent(fileId) {
-  try {
-    // Az azonosítóval megadott fájl tartalmának olvasása
-    var file = DriveApp.getFileById(fileId);
-    var content = file.getBlob().getDataAsString(); // A fájl tartalmát szövegként olvassuk be
-    return ContentService.createTextOutput(content).setMimeType(ContentService.MimeType.TEXT);
-  } catch (e) {
-    return ContentService.createTextOutput("Hiba történt: " + e.message).setMimeType(ContentService.MimeType.TEXT);
-  }
-}
-
 function addPointCredit(pointValue, pointReason) {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('Pontok');
   var archivSheet = ss.getSheetByName('archiv');
   var lastYearSheet = ss.getSheetByName('utolsó1év');
@@ -190,7 +198,7 @@ function sendPushbulletNotification(title, body) {
 }
 
 function getBalanceOnly() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
   return balanceSheet.getRange('B3').getValue(); // Csak a B3 cella értékét adjuk vissza
 }
@@ -201,7 +209,7 @@ function getBalanceOnly() {
  * a sor mellé megjelenik egy "?" ikon, amelyre kattintva megjelenik a súgó.
  */
 function loadSpecialToolsPurchaseList() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('speciális');
   if (!sheet) throw new Error('A "speciális" lap nem található.');
 
@@ -284,7 +292,7 @@ function escapeForHTMLAttribute(str) {
 }
 
 function loadCardPurchaseList() {
-  var sheet = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4').getSheetByName('kártya');
+  var sheet = getSpreadsheet_().getSheetByName('kártya');
   var data = sheet.getDataRange().getValues();
   
   var html = '<table id="cardPurchaseTable" class="table"><thead><tr>';
@@ -317,7 +325,7 @@ function loadCardPurchaseList() {
 }
 
 function deductBalanceAndProcessSale(cost, spreadsheetRowIndex, quantities) {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4'); // Helyettesítsd a saját Spreadsheet ID-val
+  var ss = getSpreadsheet_(); // Helyettesítsd a saját Spreadsheet ID-val
   var balanceSheet = ss.getSheetByName('Balance');
   var priceListSheet = ss.getSheetByName('vásárlás');
   var soldSheet = ss.getSheetByName('eladott'); // 'eladott' lap
@@ -445,7 +453,7 @@ function deductBalanceAndProcessSale(cost, spreadsheetRowIndex, quantities) {
 }
 
 function deductBalanceAndProcessSpecialToolPurchase(cost, rowIndex, quantity) {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
   var specialToolsSheet = ss.getSheetByName('speciális');
   var soldSheet = ss.getSheetByName('eladott');
@@ -509,7 +517,7 @@ function deductBalanceAndProcessSpecialToolPurchase(cost, rowIndex, quantity) {
     // Ha a megvásárolt tétel neve 'Automatikus napi büntetés',
     // akkor adjuk hozzá a vásárolt darabszámot a B8 cella értékéhez.
 if (itemName === 'Automatikus napi büntetés') {
-  var napBalanceSS = SpreadsheetApp.openById('1R-wOwvwfeT3H6Ws9o_P_JDwcfXHW0_WnqbIA6CGy__Y');
+  var napBalanceSS = getAdminSpreadsheet_();
   var napBalanceSheet = napBalanceSS.getSheetByName('Napbalance');
   var oldVal = napBalanceSheet.getRange('B1').getValue() || 0;
   var newVal = oldVal + quantity;
@@ -529,7 +537,7 @@ if (itemName === 'Automatikus napi büntetés') {
 }
 
 function deductBalanceAndProcessCardPurchase(cost, rowIndex, quantity) {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
   var cardSheet = ss.getSheetByName('kártya');
   
@@ -601,7 +609,7 @@ function deductBalanceAndProcessCardPurchase(cost, rowIndex, quantity) {
 }
 
 function getPreviousMonthPoints() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('utolsó1év'); // Az 'utolsó1év' munkalap
   if (!sheet) return 0;
 
@@ -644,7 +652,7 @@ function onEdit(e) {
 
 // Pontbeváltás sheet frissítése
 function updateRedemptionSheet() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var redemptionSheet = ss.getSheetByName('Pontbeváltás');
   var balanceSheet = ss.getSheetByName('Balance');
 
@@ -713,7 +721,7 @@ function listTriggers() {
 }
 
 function updateBalanceSheet() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
 
   if (!balanceSheet) {
@@ -743,7 +751,7 @@ function updateBalanceSheet() {
 
 
 function updateBalanceFromLastYear() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
   var lastYearSheet = ss.getSheetByName('utolsó1év'); // Az 'utolsó1év' sheet, ahol az adatok vannak
 
@@ -787,7 +795,7 @@ function updateBalanceFromLastYear() {
 
 // Törli az 1 évnél régebbi adatokat az 'utolsó1év' munkalapról
 function cleanOldLastYearData() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var lastYearSheet = ss.getSheetByName('utolsó1év');
   if (!lastYearSheet) return;
 
@@ -804,7 +812,7 @@ function cleanOldLastYearData() {
 }
 
 function expireOldPoints() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
   var lastYearSheet = ss.getSheetByName('utolsó1év');
   if (!lastYearSheet || lastYearSheet.getLastRow() < 2) {
@@ -917,46 +925,63 @@ function expireOldPoints() {
 }
 
 function loadEladottList() {
-  var sheet = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4').getSheetByName('eladott');
-  var data = sheet.getDataRange().getValues();
-  
-  // Fordítsd meg az adatokat, hogy a legújabb eladások legyenek legfelül
-  var dataWithoutHeader = data.slice(1).reverse(); // Kihagyjuk az első sort (fejléc), és megfordítjuk
+  var sheet = getSpreadsheet_().getSheetByName('eladott');
+  if (!sheet) throw new Error('Az "eladott" lap nem található.');
 
-  var html = '<table id="eladottTable" class="table" style="table-layout: fixed; width: 100%;">'; // 'table-layout: fixed' biztosítja, hogy a megadott szélességek legyenek figyelembe véve
+  var data = sheet.getDataRange().getValues();
+
+  // Legújabb eladások felül
+  var dataWithoutHeader = data.slice(1).reverse();
+
+  // A 4 időtartam fejléce (ugyanaz, mint amit eddig külön oszlopokba írtál)
+  var durationLabels = [
+    '1 óra időtartamra / darab',
+    'Reggeltől fürdésig (10 óra)',
+    '24 órára, levétel nélkül',
+    '5 munkanapra, reggeltől fürdésig'
+  ];
+
+  var html = '<table id="eladottTable" class="table" style="table-layout: fixed; width: 100%;">';
   html += '<thead><tr>';
-  html += '<th style="border: 1px solid black; padding: 8px; width: 150px; word-wrap: break-word; white-space: normal;">Büntetőeszköz megnevezése</th>';
-  html += '<th style="border: 1px solid black; padding: 8px; width: 150px; word-wrap: break-word; white-space: normal;">1 óra időtartamra / darab</th>';
-  html += '<th style="border: 1px solid black; padding: 8px; width: 150px; word-wrap: break-word; white-space: normal;">Reggeltől fürdésig (10 óra)</th>';
-  html += '<th style="border: 1px solid black; padding: 8px; width: 150px; word-wrap: break-word; white-space: normal;">24 órára, levétel nélkül</th>';
-  html += '<th style="border: 1px solid black; padding: 8px; width: 150px; word-wrap: break-word; white-space: normal;">5 munkanapra, reggeltől fürdésig</th>';
-  html += '<th style="border: 1px solid black; padding: 8px; width: 150px; word-wrap: break-word; white-space: normal;">Összköltség</th>';
-  html += '<th style="border: 1px solid black; padding: 8px; width: 150px; word-wrap: break-word; white-space: normal;">Vásárlás dátuma</th>';
+  html += '<th style="border: 1px solid black; padding: 8px; width: 220px; word-wrap: break-word; white-space: normal;">Büntetőeszköz megnevezése</th>';
+  html += '<th style="border: 1px solid black; padding: 8px; width: 320px; word-wrap: break-word; white-space: normal;">Eladott időtartam(ok)</th>';
+  html += '<th style="border: 1px solid black; padding: 8px; width: 140px; word-wrap: break-word; white-space: normal;">Összköltség</th>';
+  html += '<th style="border: 1px solid black; padding: 8px; width: 170px; word-wrap: break-word; white-space: normal;">Vásárlás dátuma</th>';
   html += '</tr></thead><tbody>';
 
-  for (var i = 0; i < dataWithoutHeader.length; i++) { // Kihagyjuk az első sort, így i = 0 az első adatsor
+  for (var i = 0; i < dataWithoutHeader.length; i++) {
     var row = dataWithoutHeader[i];
-    html += '<tr>';
-    html += '<td style="border: 1px solid black; padding: 8px; width: 150px; word-wrap: break-word; white-space: normal;">' + row[0] + '</td>';  // Büntetőeszköz megnevezése
-    html += '<td style="border: 1px solid black; padding: 8px; width: 150px;">' + row[1] + '</td>';  // 1 óra időtartamra
-    html += '<td style="border: 1px solid black; padding: 8px; width: 150px;">' + row[2] + '</td>';  // Reggeltől fürdésig
-    html += '<td style="border: 1px solid black; padding: 8px; width: 150px;">' + row[3] + '</td>';  // 24 órára levétel nélkül
-    html += '<td style="border: 1px solid black; padding: 8px; width: 150px;">' + row[4] + '</td>';  // 5 munkanapra
-    html += '<td style="border: 1px solid black; padding: 8px; width: 150px;">' + row[5] + '</td>';  // Összköltség
 
-    // Dátum formázása év.hónap.nap óra:perc formátumba
+    // row[0] név, row[1..4] időtartamok, row[5] összköltség, row[6] dátum
+    var soldParts = [];
+    for (var j = 1; j <= 4; j++) {
+      var cellText = (row[j] || '').toString().trim();
+      if (cellText) {
+        soldParts.push(
+          '<div style="margin-bottom: 4px;"><strong>' + durationLabels[j - 1] + ':</strong> ' + cellText + '</div>'
+        );
+      }
+    }
+
+    // Ha valamiért nincs egyetlen eladott időtartam sem, akkor ezt a sort kihagyjuk
+    if (soldParts.length === 0) continue;
+
     var purchaseDate = Utilities.formatDate(new Date(row[6]), Session.getScriptTimeZone(), 'yyyy.MM.dd HH:mm');
-    html += '<td style="border: 1px solid black; padding: 8px; width: 150px;">' + purchaseDate + '</td>';  // Vásárlás dátuma
-    
+
+    html += '<tr>';
+    html += '<td style="border: 1px solid black; padding: 8px; width: 220px; word-wrap: break-word; white-space: normal;">' + row[0] + '</td>';
+    html += '<td style="border: 1px solid black; padding: 8px; width: 320px;">' + soldParts.join('') + '</td>';
+    html += '<td style="border: 1px solid black; padding: 8px; width: 140px;">' + row[5] + '</td>';
+    html += '<td style="border: 1px solid black; padding: 8px; width: 170px;">' + purchaseDate + '</td>';
     html += '</tr>';
   }
-  
+
   html += '</tbody></table>';
   return html;
 }
 
 function getBalance() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
 
   // Előző havi (B1) már nem kell a megjelenítéshez
@@ -972,7 +997,7 @@ function getBalance() {
 }
 
 function loadPurchaseList() {
-  var sheet = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4').getSheetByName('vásárlás');
+  var sheet = getSpreadsheet_().getSheetByName('vásárlás');
   var data = sheet.getDataRange().getValues();
   
   var html = '<table id="purchaseTable" class="table"><thead><tr>';
@@ -1032,7 +1057,7 @@ function loadPurchaseList() {
 }
 
 function getSpendableBalance() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4'); // Balance sheet ID
+  var ss = getSpreadsheet_(); // Balance sheet ID
   var balanceSheet = ss.getSheetByName('Balance');
   
   var prevMonthBalance = balanceSheet.getRange('B1').getValue(); // Előző hónap egyenlege
@@ -1044,7 +1069,7 @@ function getSpendableBalance() {
 }
 
 function loadPriceList() {
-  var sheet = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4').getSheetByName('Árlista');
+  var sheet = getSpreadsheet_().getSheetByName('Árlista');
   var data = sheet.getDataRange().getValues();
   var backgrounds = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getBackgrounds();  // Cellák háttérszíne
   var fontColors = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getFontColors();    // Cellák szöveg színe
@@ -1087,7 +1112,7 @@ function getRedemptionInfo() {
 }
 
 function loadRedemptionData() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
 
   // Előző hónapról fennmaradt pontok (B1 cella)
@@ -1117,7 +1142,7 @@ return {
 }
 
 function getMonthlyPoints() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('utolsó1év'); // Most már az 'utolsó1év' sheet-ről gyűjtjük az adatokat
   if (!sheet) return { monthlyPoints: 0 };
 
@@ -1139,7 +1164,7 @@ function getMonthlyPoints() {
 }
 
 function cleanOldArchivedData() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var archivSheet = ss.getSheetByName('archiv');
   if (!archivSheet) return;
 
@@ -1156,7 +1181,7 @@ function cleanOldArchivedData() {
 }
 
 function loadLast7DaysEvents() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var archivSheet = ss.getSheetByName('archiv');
   if (!archivSheet) return '';
 
@@ -1193,7 +1218,7 @@ function include(filename) {
 
 function addPoints(points, punisher, punishmentCategory, disobedienceType) {
   try {
-    var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+    var ss = getSpreadsheet_();
     var sheet = ss.getSheetByName('Pontok');
     var archivSheet = ss.getSheetByName('archiv'); // archiv lap
     var lastYearSheet = ss.getSheetByName('utolsó1év'); // utolsó1év lap
@@ -1250,7 +1275,7 @@ function addPoints(points, punisher, punishmentCategory, disobedienceType) {
 
 function loadPoints() {
   try {
-    var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+    var ss = getSpreadsheet_();
     var sheet = ss.getSheetByName('Pontok');
     
     // Ellenőrizzük, hogy létezik-e a sheet és van-e benne adat
@@ -1281,7 +1306,7 @@ function loadPoints() {
 }
 
 function loadPointsTable() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('Pontok'); // <-- szükséges!
   if (!sheet) return '';
   var data = sheet.getDataRange().getValues();
@@ -1304,7 +1329,7 @@ function loadPointsTable() {
 }
 
 function updatePoints() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var pointsSheet = ss.getSheetByName('Pontok');
   var dailySummarySheet = ss.getSheetByName('Napi összesítések');
   var weeklySummarySheet = ss.getSheetByName('Heti összesítések');
@@ -1339,7 +1364,7 @@ function updatePoints() {
 }
 
 function updateWeeklyPoints() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var dailySummarySheet = ss.getSheetByName('Napi összesítések');
   var weeklySummarySheet = ss.getSheetByName('Heti összesítések');
 
@@ -1392,7 +1417,7 @@ function updateWeeklyPoints() {
 }
 
 function updateMonthlyPoints() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var dailySummarySheet = ss.getSheetByName('Napi összesítések');
   var monthlySummarySheet = ss.getSheetByName('Havi összesítések');
 
@@ -1467,7 +1492,7 @@ function updateWeeklySummary(sheet, weekNumber, points) {
 }
 
 function setKisorsolva(weekNumber) {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('Heti összesítések');
   var data = sheet.getDataRange().getValues();
 
@@ -1545,7 +1570,7 @@ function getWeekNumber(d) {
 }
 
 function loadDailySummary() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('Napi összesítések');
   
   var data = sheet.getDataRange().getValues();
@@ -1557,7 +1582,7 @@ function loadDailySummary() {
 }
 
 function loadWeeklySummary() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('Heti összesítések');
   if (!sheet) {
     return '<tr><td colspan="4">Nincs adat</td></tr>';
@@ -1596,7 +1621,7 @@ function loadWeeklySummary() {
 }
 
 function loadMonthlySummary() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('Havi összesítések');
   if (!sheet) {
     return '<table class="table"><thead><tr><th>Hónap</th><th>Összesített pont</th><th>Jutalomra jogosult</th><th>Büntetésre jogosult</th><th>Büntetés kisorsolva</th><th>Jutalom kisorsolva</th></tr></thead><tbody><tr><td colspan="6">Nincs adat</td></tr></tbody></table>';
@@ -1686,7 +1711,7 @@ function loadAllSummaries() {
 // Úrnő Pontok Hozzáadása (ha szükséges további funkciókhoz)
 function addUrnoPoints(points) {
   try {
-    var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+    var ss = getSpreadsheet_();
     var sheet = ss.getSheetByName('UrnoPontok');
     var lastRow = sheet.getLastRow();
     sheet.getRange(lastRow + 1, 1).setValue(new Date());
@@ -1705,7 +1730,7 @@ function addUrnoPoints(points) {
 }
 
 function setMonthlyKisorsolva(month, type) {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var sheet = ss.getSheetByName('Havi összesítések');
   var data = sheet.getDataRange().getValues();
 
@@ -1725,7 +1750,7 @@ function setMonthlyKisorsolva(month, type) {
 }
 
 function recalcAllWeeklySums() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var dailySummarySheet = ss.getSheetByName('Napi összesítések');
   var weeklySummarySheet = ss.getSheetByName('Heti összesítések');
 
@@ -1768,7 +1793,7 @@ function recalcAllWeeklySums() {
 }
 
 function redeemLostPoints() {
-  var ss = SpreadsheetApp.openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4');
+  var ss = getSpreadsheet_();
   var balanceSheet = ss.getSheetByName('Balance');
   var pointsSheet  = ss.getSheetByName('Pontok');
   var archivSheet  = ss.getSheetByName('archiv');
