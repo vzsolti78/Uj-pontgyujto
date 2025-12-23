@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Új pontgyűjtó alkalmazás</title>
+  <title>Pontgyűjtő</title>
 
   <link rel="manifest" href="?manifest=1">
   <meta name="theme-color" content="#3b82f6">
@@ -414,7 +414,7 @@
 <div id="errorModal" class="modal">
   <div class="modal-content">
     <p id="errorMessage"></p>
-    <button class="modal-ok-button" onclick="closeErrorModal()">OK</button>
+    <button onclick="closeErrorModal()">OK</button>
   </div>
 </div>
 
@@ -429,14 +429,13 @@
 <div id="successModal" class="modal">
   <div class="modal-content">
     <div id="modalMessage"></div>
-    <button id="successOkButton" class="modal-ok-button" type="button" onclick="closeSuccessModal()">OK</button>
   </div>
 </div>
 
 <div id="noSelectionModal" class="modal">
   <div class="modal-content">
     <p id="noSelectionMessage">Nincs kiválasztott büntetés.</p>
-    <button class="modal-ok-button" onclick="closeNoSelectionModal()">OK</button>
+    <button onclick="closeNoSelectionModal()">OK</button>
   </div>
 </div>
 
