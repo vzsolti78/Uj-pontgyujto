@@ -46,9 +46,11 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // Fájl tartalom lekérése, ha fileId paraméter van
+  // Fájl tartalom lekérésének tiltása biztonsági okokból
   if (params.fileId) {
-    return getFileContent(params.fileId);
+      return ContentService
+      .createTextOutput('A fájltartalom lekérése le van tiltva.')
+      .setMimeType(ContentService.MimeType.TEXT);
   }
 
   var page = params.page || 'index';
@@ -61,17 +63,6 @@ function doGet(e) {
     .setTitle(APP_NAME)
     .setFaviconUrl(ICON_URL)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-function getFileContent(fileId) {
-  try {
-    // Az azonosítóval megadott fájl tartalmának olvasása
-    var file = DriveApp.getFileById(fileId);
-    var content = file.getBlob().getDataAsString(); // A fájl tartalmát szövegként olvassuk be
-    return ContentService.createTextOutput(content).setMimeType(ContentService.MimeType.TEXT);
-  } catch (e) {
-    return ContentService.createTextOutput("Hiba történt: " + e.message).setMimeType(ContentService.MimeType.TEXT);
-  }
 }
 
 function addPointCredit(pointValue, pointReason) {
