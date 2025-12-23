@@ -220,6 +220,15 @@ function getBalanceOnly() {
   return balanceSheet.getRange('B3').getValue(); // Csak a B3 cella értékét adjuk vissza
 }
 
+function getSpendableBalanceValue() {
+  var ss = getMainSpreadsheet_();
+  var balanceSheet = ss.getSheetByName('Balance');
+  if (!balanceSheet) return 0;
+
+  // B3 = felhasználható egyenleg
+  return Number(balanceSheet.getRange('B3').getValue()) || 0;
+}
+
 /**
  * Betölti a 'speciális' lap adatait, és elkészíti a HTML-táblázatot.
  * A 3. oszlop (C) tartalmazhat súgószöveget. Ha van benne szöveg,
@@ -281,7 +290,7 @@ function loadSpecialToolsPurchaseList() {
 
     // 5) Vásárlás gomb
     html += '<td>' +
-            '<button class="buy-button" onclick="buySpecialTool(' + i + ')">Megveszem</button>' +
+            '<button class="buy-button" onclick="buySpecialTool(' + (i + 1) + ')">Megveszem</button>' +
             '</td>';
 
     // Sor lezárása
@@ -495,7 +504,7 @@ function deductBalanceAndProcessSpecialToolPurchase(cost, rowIndex, quantity) {
     balanceSheet.getRange('B3').setValue(newTotalBalance);
 
     // Vásárlási adatok feldolgozása
-    var rowData = specialToolsSheet.getRange(rowIndex + 1, 1, 1, specialToolsSheet.getLastColumn()).getValues()[0];
+    var rowData = specialToolsSheet.getRange(rowIndex, 1, 1, specialToolsSheet.getLastColumn()).getValues()[0];
     var itemName = rowData[0]; // A oszlop: megnevezés
 
     // Eladott tételek hozzáadása
