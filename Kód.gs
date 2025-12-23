@@ -4,19 +4,22 @@ const APP_SHORT_NAME = 'Pontgyűjtő';
 const THEME_COLOR    = '#3b82f6';
 const ICON_URL       = 'https://res.cloudinary.com/dml7b81n6/image/upload/v1765280307/Pontgyujto_ikon_upsfe1.png';
 const POINT_EXPIRATION_DAYS = 90;
+const PROPS = PropertiesService.getScriptProperties();
+const SPREADSHEET_ID_MAIN  = PROPS.getProperty('SPREADSHEET_ID_MAIN');
+const SPREADSHEET_ID_ADMIN = PROPS.getProperty('SPREADSHEET_ID_ADMIN');
 
-// --- Spreadsheet azonosító kezelése (NE hardcode-old a kódban) ---
-const SPREADSHEET_ID = PropertiesService
-  .getScriptProperties()
-  .getProperty('SPREADSHEET_ID');
-
-function getSpreadsheet_() {
-  if (!SPREADSHEET_ID) {
-    throw new Error(
-      "Hiányzik a SPREADSHEET_ID Script Property. Project Settings → Script properties → SPREADSHEET_ID"
-    );
+function getMainSpreadsheet_() {
+  if (!SPREADSHEET_ID_MAIN) {
+    throw new Error('SPREADSHEET_ID_MAIN nincs beállítva.');
   }
-  return SpreadsheetApp.openById(SPREADSHEET_ID);
+  return SpreadsheetApp.openById(SPREADSHEET_ID_MAIN);
+}
+
+function getAdminSpreadsheet_() {
+  if (!SPREADSHEET_ID_ADMIN) {
+    throw new Error('SPREADSHEET_ID_ADMIN nincs beállítva.');
+  }
+  return SpreadsheetApp.openById(SPREADSHEET_ID_ADMIN);
 }
 
 function doGet(e) {
@@ -523,7 +526,7 @@ function deductBalanceAndProcessSpecialToolPurchase(cost, rowIndex, quantity) {
     // Ha a megvásárolt tétel neve 'Automatikus napi büntetés',
     // akkor adjuk hozzá a vásárolt darabszámot a B8 cella értékéhez.
 if (itemName === 'Automatikus napi büntetés') {
-  var napBalanceSS = SpreadsheetApp.openById('1R-wOwvwfeT3H6Ws9o_P_JDwcfXHW0_WnqbIA6CGy__Y');
+  var napBalanceSS = getAdminSpreadsheet_();
   var napBalanceSheet = napBalanceSS.getSheetByName('Napbalance');
   var oldVal = napBalanceSheet.getRange('B1').getValue() || 0;
   var newVal = oldVal + quantity;
@@ -931,9 +934,8 @@ function expireOldPoints() {
 }
 
 function loadEladottList() {
-  var sheet = SpreadsheetApp
-    .openById('1k1t3FrHQJeZj4UMJGFBc_-lkbN3YszUoat9JFHPExc4')
-    .getSheetByName('eladott');
+  var sheet = getSpreadsheet_().getSheetByName('eladott');
+  if (!sheet) throw new Error('Az "eladott" lap nem található.');
 
   var data = sheet.getDataRange().getValues();
 
