@@ -8,18 +8,26 @@ const PROPS = PropertiesService.getScriptProperties();
 const SPREADSHEET_ID_MAIN  = PROPS.getProperty('SPREADSHEET_ID_MAIN');
 const SPREADSHEET_ID_ADMIN = PROPS.getProperty('SPREADSHEET_ID_ADMIN');
 
+let _mainSS, _adminSS;
+
 function getMainSpreadsheet_() {
-  if (!SPREADSHEET_ID_MAIN) {
-    throw new Error('SPREADSHEET_ID_MAIN nincs beállítva.');
-  }
-  return SpreadsheetApp.openById(SPREADSHEET_ID_MAIN);
+  if (_mainSS) return _mainSS;
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID_MAIN');
+  if (!id) throw new Error('SPREADSHEET_ID_MAIN nincs beállítva.');
+  _mainSS = SpreadsheetApp.openById(id);
+  return _mainSS;
 }
 
 function getAdminSpreadsheet_() {
-  if (!SPREADSHEET_ID_ADMIN) {
-    throw new Error('SPREADSHEET_ID_ADMIN nincs beállítva.');
-  }
-  return SpreadsheetApp.openById(SPREADSHEET_ID_ADMIN);
+  if (_adminSS) return _adminSS;
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID_ADMIN');
+  if (!id) throw new Error('SPREADSHEET_ID_ADMIN nincs beállítva.');
+  _adminSS = SpreadsheetApp.openById(id);
+  return _adminSS;
+}
+
+function getSpreadsheet_() {
+  return getMainSpreadsheet_();
 }
 
 function doGet(e) {
